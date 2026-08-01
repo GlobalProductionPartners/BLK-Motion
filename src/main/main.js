@@ -30,6 +30,21 @@ function createWindow() {
     }
   });
 
+  // Pop-out panels: the renderer opens child windows and adopts panel DOM
+  // into them (same process). Allow them with app-consistent chrome.
+  mainWindow.webContents.setWindowOpenHandler(() => ({
+    action: 'allow',
+    overrideBrowserWindowOptions: {
+      backgroundColor: '#0b0b0c',
+      width: 560,
+      height: 440,
+      minWidth: 320,
+      minHeight: 240,
+      autoHideMenuBar: true,
+      title: 'BLK Motion'
+    }
+  }));
+
   mainWindow.loadFile(path.join(__dirname, '..', 'renderer', 'index.html'));
 
   mainWindow.on('closed', () => {

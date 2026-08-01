@@ -87,6 +87,8 @@
     letter-spacing:.06em; padding:0 20px; height:32px; text-transform:uppercase;
   }
   .btn-stop:hover{ background:#e85c4a; }
+  .btn-stop.reset{ background:var(--yellow); color:#000; }
+  .btn-stop.reset:hover{ background:#f0b64f; }
 
   /* System state — the one chip that answers "what is the rig doing" */
   .sys-state{ padding:4px 11px; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.07em; flex:0 0 auto; }
@@ -134,6 +136,13 @@
   #panelViewport .panel-body{ position:relative; background:var(--recess); }
 
   .panel.floating{ position:fixed; z-index:500; box-shadow:0 24px 70px rgba(0,0,0,.7); border:1px solid var(--hairline); }
+  #snapHint{ position:fixed; z-index:499; background:rgba(85,144,217,.16); border:1.5px solid rgba(85,144,217,.65); pointer-events:none; transition:all .08s ease; }
+  .splitter-h{ flex:0 0 5px; cursor:row-resize; background:var(--bg); position:relative; z-index:5; }
+  .splitter-h:hover{ background:var(--blue); }
+  .splitter-v{ flex:0 0 5px; cursor:col-resize; background:var(--bg); position:relative; z-index:5; }
+  .splitter-v:hover{ background:var(--blue); }
+  .panel.popped{ position:fixed; inset:0; width:auto !important; height:auto !important; border:none; box-shadow:none; }
+  #layoutSel{ background:var(--recess); border:1px solid var(--hairline); color:var(--text-2); font-size:10.5px; padding:3px 4px; max-width:110px; }
   .panel.floating .panel-head{ cursor:grab; background:var(--surface-2); }
   .panel.floating .panel-head:active{ cursor:grabbing; }
   .panel-resize-handle{ position:absolute; right:0; bottom:0; width:16px; height:16px; cursor:nwse-resize; display:none; z-index:2; }
@@ -155,6 +164,15 @@
   .cat-tab{ color:var(--text-3); font-size:11.5px; padding:7px 13px; border-bottom:2px solid transparent; }
   .cat-tab:hover{ color:var(--text-2); }
   .cat-tab.active{ color:var(--text); border-bottom-color:var(--text); }
+  .page-rename{ background:var(--recess); border:1px solid var(--hairline); color:var(--text); font-size:11px; width:90px; padding:2px 4px; }
+  .group-row{ display:flex; align-items:center; gap:8px; padding:7px 4px; border-bottom:1px solid var(--hairline); cursor:pointer; font-size:11.5px; color:var(--text-2); }
+  .group-row b{ color:var(--text); flex:1 1 auto; }
+  .group-row:hover{ background:var(--surface-2); }
+  .t-chip{ width:17px; height:17px; background:var(--surface-2); color:var(--text-3); font-size:8.5px; display:inline-flex; align-items:center; justify-content:center; }
+  .t-chip.on{ background:var(--blue); color:#fff; font-weight:700; }
+  .t-group{ background:var(--recess); border:1px solid var(--hairline); color:var(--text-2); font-size:9.5px; max-width:140px; padding:1px 2px; }
+  .t-filter{ display:inline-flex; gap:3px; }
+  .editor-scope{ display:flex; align-items:center; gap:8px; }
   .grid-scroll{ flex:1 1 auto; overflow-y:auto; padding:12px; }
   .cue-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(148px, 1fr)); gap:8px; }
   .cue-tile{
@@ -264,11 +282,6 @@
 
   .bitmap-canvas-wrap{ position:relative; overflow:hidden; background:var(--recess); }
   .bitmap-canvas-wrap canvas{ display:block; width:100%; height:auto; }
-  .bitmap-canvas-wrap .canvas-overlay{ position:absolute; border:1.5px solid var(--grp-colour); background:rgba(176,108,196,.1); cursor:move; }
-  .sample-mode-row{ display:flex; gap:2px; }
-  .sample-btn{ flex:1; background:var(--surface-2); color:var(--text-2); font-size:10.5px; padding:6px 0; }
-  .sample-btn:hover{ background:var(--surface-3); }
-  .sample-btn.active{ background:var(--text); color:#000; font-weight:600; }
   .bitmap-note{ font-size:10.5px; color:var(--text-3); line-height:1.55; margin:0; }
 
   /* ---- Buttons ---- */
@@ -361,18 +374,32 @@
   .section-head{ font-size:10px; font-weight:600; color:var(--text-3); margin-bottom:12px; text-transform:uppercase; letter-spacing:.09em; }
   .zone-info{ font-size:11.5px; color:var(--text-2); display:flex; gap:18px; flex-wrap:wrap; margin-bottom:12px; }
   .zone-info b{ color:var(--text); font-weight:600; font-family:var(--mono); }
-  .deadman{ font-size:10.5px; color:var(--text-3); padding:7px 12px; background:var(--surface-2); display:inline-flex; align-items:center; gap:8px; margin-bottom:12px; }
+  .deadman{ font-size:10.5px; color:var(--text-3); padding:7px 12px; background:var(--surface-2); display:inline-flex; align-items:center; gap:8px; }
   .deadman::before{ content:""; width:7px; height:7px; border-radius:50%; background:var(--text-3); }
   .deadman.armed{ color:var(--green); }
   .deadman.armed::before{ background:var(--green); }
+  /* ---- Test mode controls ---- */
+  .test-arm-row{ display:flex; align-items:center; gap:10px; margin-bottom:14px; }
+  #testEnableBtn.on{ background:var(--green); color:#000; font-weight:600; }
+  .test-grid{ display:flex; flex-direction:column; gap:12px; max-width:520px; }
+  .test-grid.off{ opacity:.45; pointer-events:none; }
+  .test-field{ display:flex; align-items:center; gap:12px; }
+  .test-field > label{ flex:0 0 64px; font-size:10px; color:var(--text-2); text-transform:uppercase; letter-spacing:.06em; }
+  .test-inline{ display:flex; align-items:center; gap:10px; flex:1 1 auto; }
+  .test-inline input[type=range]{ flex:1 1 auto; accent-color:var(--green); }
+  .test-inline .mono{ min-width:44px; text-align:right; font-family:var(--mono); font-size:12px; color:var(--text); }
+  .test-field input[type=number]{ width:64px; background:var(--recess); border:1px solid var(--hairline); color:var(--text); padding:4px 6px; font-size:12px; font-family:var(--mono); }
+  .test-field input[type=color]{ width:36px; height:26px; padding:0; border:1px solid var(--hairline); background:var(--recess); }
+  .test-palette{ display:flex; gap:6px; }
+  .test-palette button{ width:24px; height:24px; border:1px solid rgba(255,255,255,.15); cursor:pointer; }
+  .test-palette button.active{ outline:2px solid var(--text); outline-offset:1px; }
+  .dmx-readout{ font-family:var(--mono); font-size:11.5px; color:var(--text-2); }
+  .dmx-readout .dmx-row{ display:flex; justify-content:space-between; padding:4px 0; border-bottom:1px solid var(--hairline); }
+  .dmx-readout .dmx-row b{ color:var(--text); }
+  .dmx-readout .dmx-addr{ font-size:10.5px; color:var(--text-3); padding:4px 0 8px; }
+  .lim-m{ font-size:9px; color:var(--text-3); font-family:var(--mono); margin-top:2px; }
   .btn-row{ display:flex; gap:6px; flex-wrap:wrap; }
 
-  .fader{ display:flex; flex-direction:column; align-items:center; gap:7px; width:48px; }
-  .fader .fd-name{ font-size:9px; text-transform:uppercase; letter-spacing:.05em; color:var(--text-3); }
-  .fader .fd-val{ font-family:var(--mono); font-size:14px; font-weight:700; color:var(--text); }
-  .fader-track{ position:relative; width:4px; height:130px; background:var(--surface-3); cursor:ns-resize; }
-  .fader-cap{ position:absolute; left:-10px; width:24px; height:4px; background:var(--text); }
-  .fader-row{ display:flex; gap:18px; }
 
   /* ---- Timeline ---- */
   .timeline-toolbar{ flex:0 0 auto; display:flex; align-items:center; gap:10px; padding:7px 12px; }
@@ -382,8 +409,8 @@
   .tl-time{ font-family:var(--mono); font-size:12px; color:var(--text-3); }
   .tl-time b{ color:var(--text); font-weight:700; font-size:14px; }
   .timeline-body{ flex:1 1 auto; display:flex; min-height:0; }
-  .track-headers{ flex:0 0 128px; border-right:2px solid var(--bg); display:flex; flex-direction:column; padding-top:18px; }
-  .track-header{ height:48px; padding:6px 12px; display:flex; flex-direction:column; justify-content:center; gap:3px; }
+  .track-headers{ flex:0 0 190px; border-right:2px solid var(--bg); display:flex; flex-direction:column; padding-top:18px; overflow-y:auto; }
+  .track-header{ height:64px; flex:0 0 64px; padding:6px 10px; display:flex; flex-direction:column; justify-content:center; gap:5px; }
   .track-header .t-name{ font-size:11px; color:var(--text); font-weight:600; }
   .t-btns{ display:flex; gap:3px; }
   .t-mini-btn{ width:17px; height:17px; background:var(--surface-2); color:var(--text-3); font-size:8.5px; display:flex; align-items:center; justify-content:center; }
@@ -392,8 +419,19 @@
   .tracks-scroll{ flex:1 1 auto; overflow-x:auto; overflow-y:hidden; position:relative; }
   .ruler{ height:18px; position:relative; }
   .ruler-tick{ position:absolute; top:0; bottom:0; border-left:1px solid var(--surface-3); font-size:8.5px; color:var(--text-3); padding-left:4px; padding-top:3px; font-family:var(--mono); }
+  .beat-tick{ position:absolute; top:11px; bottom:0; border-left:1px solid rgba(255,255,255,.08); }
+  .ctx-menu{ position:fixed; z-index:2000; background:var(--surface-2); border:1px solid var(--hairline); min-width:200px; box-shadow:0 8px 28px rgba(0,0,0,.5); padding:4px 0; }
+  .ctx-item{ padding:7px 14px; font-size:11.5px; color:var(--text-2); cursor:pointer; }
+  .ctx-item:hover{ background:var(--surface-3); color:var(--text); }
+  .ctx-item.disabled{ opacity:.35; pointer-events:none; }
+  .ctx-sep{ height:1px; background:var(--hairline); margin:4px 0; }
+  #audioLane{ display:block; height:0; }
+  #audioLane.on{ height:26px; }
+  .cue-block.preset{ outline:1px dashed rgba(226,166,61,.6); outline-offset:-1px; filter:saturate(.35) brightness(.85); }
+  .cue-block.preset .cb-body{ color:var(--yellow); }
+  .bar-tick{ position:absolute; top:7px; bottom:0; border-left:1px solid rgba(226,166,61,.35); }
   .track-lanes{ position:relative; }
-  .track-lane{ height:48px; position:relative; background:var(--surface-2); box-shadow:inset 0 -2px 0 var(--surface); }
+  .track-lane{ height:64px; position:relative; background:var(--surface-2); box-shadow:inset 0 -2px 0 var(--surface); }
   .track-lane.dragover{ background:var(--surface-3); }
   .tl-playhead{ position:absolute; top:0; bottom:0; width:1.5px; background:var(--accent); z-index:5; pointer-events:none; }
   .cue-block{ position:absolute; top:5px; bottom:7px; background:var(--surface-3); overflow:hidden; cursor:grab; display:flex; flex-direction:column; }
@@ -487,9 +525,14 @@
       <button data-mode="restart" title="Every press restarts the cue from its beginning">Restart</button>
     </div>
   </div>
+  <div class="tb-group" title="Window layouts — saved on this machine">
+    <select id="layoutSel"><option value="">Layouts…</option></select>
+    <button class="flat-btn" id="layoutSaveBtn" title="Save the current window arrangement (overwrites the selected layout)">Save</button>
+    <button class="panel-head-btn" id="layoutDelBtn" title="Delete the selected layout"><svg viewBox="0 0 16 16" width="11" height="11"><path d="M4 4l8 8M12 4l-8 8" fill="none" stroke="currentColor" stroke-width="1.4"/></svg></button>
+  </div>
   <div class="seg" id="modeSeg">
     <div class="seg-thumb" id="modeThumb"></div>
-    <button data-appmode="run" class="active" title="Output enabled — cues can run">Live</button>
+    <button data-appmode="run" class="active" title="Output enabled — test and cue playback can run">Test</button>
     <button data-appmode="edit" title="Output blocked — safe to edit, all playbacks stop">Edit</button>
   </div>
   <button class="flat-btn" id="pauseBtn" title="Freeze all motion exactly where it is — output stays on">Pause Motion</button>
@@ -510,9 +553,13 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="5" cy="6" r="1.5"/><circle cx="12" cy="6" r="1.5"/><circle cx="19" cy="6" r="1.5"/><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/><path d="M3 19h18"/></svg>
       <span>Layout</span>
     </button>
-    <button class="rail-btn" data-view="live" title="Live">
+    <button class="rail-btn" data-view="groups" title="Selection Groups — pick portions of the rig for scoped effects">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="6" cy="6" r="1.5"/><circle cx="12" cy="6" r="1.5"/><circle cx="18" cy="6" r="1.5"/><circle cx="6" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><rect x="3" y="3" width="12.5" height="12.5" rx="1" stroke-dasharray="2 2"/></svg>
+      <span>Groups</span>
+    </button>
+    <button class="rail-btn" data-view="live" title="Test">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M5 21V9M12 21V3M19 21v-7"/></svg>
-      <span>Live</span>
+      <span>Test</span>
     </button>
     <button class="rail-btn" data-view="library" title="Winch Library">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><ellipse cx="12" cy="6" rx="7" ry="2.6"/><path d="M5 6v6c0 1.4 3.1 2.6 7 2.6s7-1.2 7-2.6V6"/><path d="M5 12v6c0 1.4 3.1 2.6 7 2.6s7-1.2 7-2.6v-6"/></svg>
@@ -545,21 +592,36 @@
           </div>
           <div class="panel-body">
             <div class="show-tab-view active" id="cuesTabView">
-              <div class="cat-tabs" id="catTabs"></div>
+              <div style="display:flex; align-items:flex-end;">
+                <div class="cat-tabs" id="catTabs" style="flex:1 1 auto;"></div>
+                <div style="display:flex; align-items:center; gap:8px; padding:0 12px 4px;">
+                  <span class="tb-label" title="Single: firing a cue stops the others first. Multi: cues stack — each drives the fixtures its group covers and the parameters its filter allows.">Stack</span>
+                  <div class="seg small" id="cueStackSeg"><div class="seg-thumb" id="cueStackThumb"></div>
+                    <button data-stack="single">Single</button><button data-stack="multi" class="active">Multi</button>
+                  </div>
+                </div>
+              </div>
               <div class="grid-scroll"><div class="cue-grid" id="cueGrid"></div></div>
             </div>
             <div class="show-tab-view" id="timelineTabView">
               <div class="timeline-toolbar">
                 <button class="transport-btn" id="tlPlay" title="Play/Pause"><svg id="tlPlayIcon" width="9" height="9" viewBox="0 0 9 9" fill="currentColor"><path d="M0 0l9 4.5L0 9z"/></svg></button>
                 <button class="transport-btn" id="tlStop" title="Stop"><svg width="8" height="8" viewBox="0 0 9 9" fill="currentColor"><rect width="9" height="9"/></svg></button>
-                <div class="tl-time"><b id="tlTimeNow">00:00.0</b> / <span id="tlTimeTotal">00:32.0</span></div>
+                <div class="tl-time"><b id="tlTimeNow">00:00:00:00</b> / <span id="tlTimeTotal">00:00:32:00</span></div>
+                <button class="flat-btn" id="tlLoopBtn" title="What happens at the end: Loop restarts from 0; Once stops and resets">Loop</button>
                 <div class="spacer"></div>
+                <span class="tb-label">Length</span>
+                <input type="text" value="00:00:32:00" id="tlLenInp" title="Timeline length as HH:MM:SS:FF @ 25 fps — also accepts MM:SS or plain seconds" style="width:96px; background:var(--recess); border:1px solid var(--hairline); color:var(--text); padding:3px 5px; font-size:11.5px; font-family:var(--mono);">
+                <button class="flat-btn" id="tlAudioBtn" title="Load an audio file — plays in sync with the timeline">♪ Audio…</button>
+                <button class="panel-head-btn" id="tlAudioRemoveBtn" title="Remove audio" style="display:none;"><svg viewBox="0 0 16 16" width="11" height="11"><path d="M4 4l8 8M12 4l-8 8" fill="none" stroke="currentColor" stroke-width="1.4"/></svg></button>
+                <span class="tb-label">BPM</span>
+                <input type="number" min="0" max="300" value="0" id="tlBpmInp" title="0 = off — sets beat markers and beat snapping" style="width:52px; background:var(--recess); border:1px solid var(--hairline); color:var(--text); padding:3px 5px; font-size:11.5px; font-family:var(--mono);">
                 <span class="tb-label">Zoom</span>
-                <input type="range" min="40" max="160" value="70" id="tlZoom" style="width:100px;">
+                <input type="range" min="8" max="160" value="70" id="tlZoom" style="width:100px;" title="Zoom — drag left to see the whole timeline">
               </div>
               <div class="timeline-body">
                 <div class="track-headers" id="trackHeaders"></div>
-                <div class="tracks-scroll" id="tracksScroll"><div class="ruler" id="ruler"></div><div class="track-lanes" id="trackLanes"></div></div>
+                <div class="tracks-scroll" id="tracksScroll"><div class="ruler" id="ruler"></div><canvas id="audioLane"></canvas><div class="track-lanes" id="trackLanes"></div></div>
               </div>
             </div>
           </div>
@@ -578,6 +640,7 @@
               <span class="cue-no mono" id="editorCueNo">—</span>
               <input class="cue-name-input" id="cueNameInput" value="" placeholder="No cue selected">
               <div class="editor-sub"><div><label>Category</label><div class="mono" id="editorCategory">—</div></div><div><label>Playback</label><div class="mono" id="editorPlayback">—</div></div></div>
+              <div class="editor-scope" id="editorScope"></div>
               <button class="flat-btn" id="syncPhaseBtn" title="Drive Dimmer and Colour phase, rate and direction from Motion">Sync</button>
               <button class="flat-btn" id="savePresetBtn" title="Save this cue's parameters as a preset">Save Preset</button>
             </div>
@@ -599,11 +662,12 @@
           <div class="panel-body">
             <div class="patch-toolbar">
               <button class="flat-btn go" id="addFixturesBtn" title="Add fixtures to the patch — they appear in the Monitor immediately">Add Fixtures</button>
-              <input type="number" id="addFixturesCount" value="1" min="1" max="96" title="How many to add">
+              <input type="number" id="addFixturesCount" value="1" min="1" max="512" title="How many to add — addresses roll to the next universe automatically">
               <button class="flat-btn" id="removeFixturesBtn" title="Remove the ticked fixtures from the patch">Remove</button>
               <button class="flat-btn go" id="autoDiscoverBtn">Auto-Discover</button>
               <button class="flat-btn" title="Ask every winch to report its actual position">Poll Positions</button>
               <button class="flat-btn" id="highlightBtn" title="Light the selected fixtures full white in the Live View — position untouched">Highlight</button>
+              <button class="flat-btn" id="calibrateBtn" title="Run a motor speed calibration pass against the selected fixture's patch limits">Calibrate Motor</button>
               <span class="tb-label" id="selCount">0 selected</span>
               <span class="tb-label">· ticked rows edit together</span>
               <div class="spacer"></div>
@@ -625,7 +689,7 @@
       <div class="dock" id="dockLive">
         <div class="panel" id="panelLive" style="flex:1 1 auto;">
           <div class="panel-head">
-            <span class="panel-title">Live</span>
+            <span class="panel-title">Test</span>
             <div class="spacer"></div>
             <button class="panel-head-btn" data-float="panelLive" title="Float"><svg viewBox="0 0 16 16" width="13" height="13"><path d="M6.5 3.5h-3v9h9v-3M9.5 3.5h3v3M12.5 3.5L8 8" fill="none" stroke="currentColor" stroke-width="1.4"/></svg></button>
             <button class="panel-head-btn" data-close="panelLive" title="Close"><svg viewBox="0 0 16 16" width="13" height="13"><path d="M4 4l8 8M12 4l-8 8" fill="none" stroke="currentColor" stroke-width="1.4"/></svg></button>
@@ -637,25 +701,19 @@
             </div>
             <div class="live-mid">
               <div>
-                <div class="section-head">Position Control</div>
+                <div class="section-head">Fixture Test</div>
                 <div class="zone-info" id="zoneInfo"></div>
-                <div class="deadman" id="deadmanStatus">Hold Ctrl to arm manual moves</div>
-                <div class="btn-row">
-                  <button class="flat-btn jog-btn" disabled id="jogZero">Go to Zero</button>
-                  <button class="flat-btn jog-btn" disabled id="jogTop">Go to Top</button>
-                  <button class="flat-btn jog-btn" disabled>Nudge Up</button>
-                  <button class="flat-btn jog-btn" disabled>Nudge Down</button>
-                  <button class="flat-btn jog-btn" disabled id="jogBottom">Go to Bottom</button>
+                <div class="test-arm-row">
+                  <button class="flat-btn" id="testEnableBtn" title="While enabled, the selected fixture is driven by these test values instead of the show — within its patch limits">Enable Test Control</button>
+                  <div class="deadman" id="deadmanStatus">Test disabled — the show engine drives all fixtures</div>
                 </div>
-              </div>
-              <div>
-                <div class="section-head">Master</div>
-                <div class="fader-row" id="masterFaders"></div>
+                <div id="testControls" class="test-grid"></div>
               </div>
             </div>
-            <div style="width:250px;flex:0 0 auto;border-left:2px solid var(--bg);padding:16px;overflow-y:auto;">
-              <div class="section-head">Light Channels</div>
-              <div class="fader-row" id="channelFaders"></div>
+            <div style="width:270px;flex:0 0 auto;border-left:2px solid var(--bg);padding:16px;overflow-y:auto;">
+              <div class="section-head">DMX Output</div>
+              <p class="lib-note">The exact bytes streaming for the selected fixture — same values the Monitor renders.</p>
+              <div id="testDmx" class="dmx-readout"></div>
             </div>
           </div>
           <div class="panel-resize-handle"></div>
@@ -714,6 +772,35 @@
             <div style="flex:1 1 auto; min-width:0; padding:14px 16px; display:flex; flex-direction:column;">
               <div class="section-head">Plan view — top down</div>
               <canvas id="layoutPlan" style="flex:1 1 auto; min-height:0; width:100%;"></canvas>
+            </div>
+          </div>
+          <div class="panel-resize-handle"></div>
+        </div>
+      </div>
+
+      <!-- ============ GROUPS DOCK ============ -->
+      <div class="dock" id="dockGroups">
+        <div class="panel" id="panelGroups" style="flex:1 1 auto;">
+          <div class="panel-head">
+            <span class="panel-title">Selection Groups</span>
+            <span class="panel-sub">click or drag on the plan to pick fixtures, then save as a group</span>
+            <div class="spacer"></div>
+            <button class="panel-head-btn" data-float="panelGroups" title="Float"><svg viewBox="0 0 16 16" width="13" height="13"><path d="M6.5 3.5h-3v9h9v-3M9.5 3.5h3v3M12.5 3.5L8 8" fill="none" stroke="currentColor" stroke-width="1.4"/></svg></button>
+            <button class="panel-head-btn" data-close="panelGroups" title="Close"><svg viewBox="0 0 16 16" width="13" height="13"><path d="M4 4l8 8M12 4l-8 8" fill="none" stroke="currentColor" stroke-width="1.4"/></svg></button>
+          </div>
+          <div class="panel-body" style="flex-direction:row; overflow:hidden;">
+            <div style="flex:1 1 auto; min-width:0; padding:14px 16px; display:flex; flex-direction:column;">
+              <div style="display:flex; align-items:center; gap:10px; margin-bottom:8px;">
+                <input type="text" id="groupNameInp" placeholder="Group name" style="background:var(--recess); border:1px solid var(--hairline); color:var(--text); padding:5px 8px; font-size:12px; width:160px;">
+                <button class="flat-btn go" id="groupSaveBtn">Save Group</button>
+                <button class="flat-btn" id="groupClearBtn">Clear</button>
+                <span class="unit" style="font-size:10.5px;color:var(--text-3);" id="groupSelCount">0 selected</span>
+              </div>
+              <canvas id="groupsPlan" style="flex:1 1 auto; min-height:0; width:100%; cursor:crosshair;"></canvas>
+            </div>
+            <div style="width:250px; flex:0 0 auto; border-left:2px solid var(--bg); padding:16px; overflow-y:auto;">
+              <div class="section-head">Saved Groups</div>
+              <div id="groupList"></div>
             </div>
           </div>
           <div class="panel-resize-handle"></div>
@@ -854,6 +941,29 @@
   </div>
 </div>
 
+<div class="modal-backdrop" id="calibrationModal" hidden>
+  <div class="modal" style="max-width:520px;">
+    <div class="modal-title">Motor Calibration</div>
+    <p class="modal-text" id="calibrationFixtureInfo">Fixture —</p>
+    <div class="set-rows compact">
+      <div class="set-row"><label>Current speed</label><span class="unit" id="calibrationCurrentSpeed">0 cm/s</span></div>
+      <div class="set-row"><label>Travel span</label><span class="unit" id="calibrationTravelSpan">0 DMX</span></div>
+      <div class="set-row"><label>Expected time</label><span class="unit" id="calibrationExpectedTime">0.0 s</span></div>
+      <div class="set-row"><label>Measured time</label><span class="unit" id="calibrationMeasuredTime">—</span></div>
+    </div>
+    <div class="modal-btns">
+      <button class="flat-btn go" id="calibrationRunBtn">Run Test</button>
+      <button class="flat-btn" id="calibrationApplySelBtn" style="display:none;" title="Store the measured speed on the ticked fixtures only (or just this one) — overrides the model value">Apply to Selected</button>
+      <button class="flat-btn" id="calibrationCloseBtn">Close</button>
+    </div>
+  </div>
+</div>
+
+<input type="file" id="bitmapFileInp" accept="image/*,video/webm,video/mp4" hidden>
+<input type="file" id="tlAudioInp" accept="audio/*" hidden>
+<div class="ctx-menu" id="tlCtxMenu" hidden></div>
+<div id="snapHint" hidden></div>
+
 <div class="statuslog">
   <div class="sl-head">
     <span class="sl-dot"></span>
@@ -980,6 +1090,86 @@
     }
     return p;
   }
+  /* ==========================================================================
+     BITMAP ENGINE — an image drives any parameter. Fixtures sample the
+     pixel under their layout-grid position; the image scrolls in the
+     param's Direction at its Rate. Greyscale params (motion/dimmer) map
+     black→Low and white→High, with Black/White points for contrast;
+     colour takes the pixel RGB directly. Images are re-encoded capped at
+     192 px so show files stay sane.
+     ========================================================================== */
+  var bitmapCache = {};
+  function ensureBitmapCache(src){
+    if(!src || bitmapCache[src] !== undefined) return;
+    bitmapCache[src] = null; /* decoding marker */
+    if(src.indexOf('data:video/')===0 || /\.(webm|mp4)$/i.test(src)){
+      /* moving bitmap: the video plays looped+muted offscreen and its
+         current frame is grabbed into the sample buffer ~20×/s */
+      var vid = document.createElement('video');
+      vid.muted = true; vid.loop = true; vid.playsInline = true;
+      vid.addEventListener('loadeddata', function(){
+        var cw = Math.max(1, Math.min(192, vid.videoWidth||192));
+        var chh = Math.max(1, Math.round(cw*(vid.videoHeight||1)/Math.max(1, vid.videoWidth||1)));
+        var cv = document.createElement('canvas'); cv.width = cw; cv.height = chh;
+        var cx = cv.getContext('2d'); cx.drawImage(vid, 0, 0, cw, chh);
+        bitmapCache[src] = { data: cx.getImageData(0, 0, cw, chh).data, w: cw, h: chh, canvas: cv, ctx: cx, video: vid, lastUsed: performance.now() };
+        vid.play();
+        renderEditor();
+      });
+      vid.src = src;
+      return;
+    }
+    var img = new Image();
+    img.onload = function(){
+      var cw = Math.max(1, Math.min(192, img.width));
+      var chh = Math.max(1, Math.round(cw*img.height/Math.max(1, img.width)));
+      var cv = document.createElement('canvas'); cv.width = cw; cv.height = chh;
+      var cx = cv.getContext('2d'); cx.drawImage(img, 0, 0, cw, chh);
+      bitmapCache[src] = { data: cx.getImageData(0, 0, cw, chh).data, w: cw, h: chh, canvas: cv };
+      renderEditor();
+    };
+    img.src = src;
+  }
+  /* grab fresh frames from playing video bitmaps; Pause Motion freezes them */
+  setInterval(function(){
+    var now = performance.now();
+    Object.keys(bitmapCache).forEach(function(k){
+      var c = bitmapCache[k];
+      if(!c || !c.video) return;
+      if(motionPaused){ if(!c.video.paused) c.video.pause(); return; }
+      if(c.video.paused) c.video.play();
+      if(now - (c.lastUsed||0) > 2000) return; /* nothing sampling it — skip the copy */
+      c.ctx.drawImage(c.video, 0, 0, c.w, c.h);
+      c.data = c.ctx.getImageData(0, 0, c.w, c.h).data;
+    });
+  }, 50);
+  var BITMAP_DIR_VEC = { lr:[1,0], rl:[-1,0], fb:[0,1], bf:[0,-1], diag:[0.7071,0.7071], center:[1,0], edges:[-1,0], sync:[0,0] };
+  function bitmapSample(param, col, row, cyc){
+    var bm = param.bitmap;
+    if(!bm || !bm.src) return null;
+    var c = bitmapCache[bm.src];
+    if(!c) return null;
+    c.lastUsed = performance.now();
+    var u = GRID_COLS>1 ? col/(GRID_COLS-1) : 0.5;
+    var v = GRID_ROWS>1 ? row/(GRID_ROWS-1) : 0.5;
+    var dv = BITMAP_DIR_VEC[(param.dist && param.dist.dir) || 'lr'] || [1,0];
+    u = u - dv[0]*cyc; v = v - dv[1]*cyc;
+    u = ((u%1)+1)%1; v = ((v%1)+1)%1;
+    var x = Math.min(c.w-1, Math.floor(u*c.w)), y = Math.min(c.h-1, Math.floor(v*c.h));
+    var i = (y*c.w + x)*4;
+    return [c.data[i], c.data[i+1], c.data[i+2]];
+  }
+  function bitmapLevel(param, col, row, cyc){
+    var rgb = bitmapSample(param, col, row, cyc);
+    if(!rgb) return null;
+    var lum = 0.299*rgb[0] + 0.587*rgb[1] + 0.114*rgb[2];
+    var bm = param.bitmap;
+    var mn = bm.min===undefined ? 0 : bm.min;
+    var mx = bm.max===undefined ? 255 : bm.max;
+    if(mx<=mn) mx = mn+1;
+    return Math.max(0, Math.min(1, (lum-mn)/(mx-mn)));
+  }
+
   function defaultParam(shape, low, high){
     return applyDist({ shape:shape, low:low, high:high, rate:50, phase:0, dist:{ dir:'lr', wings:1, blocks:1, groups:1, shuffle:0, width:1 } });
   }
@@ -997,7 +1187,7 @@
     var range = Math.abs(param.high-param.low); // mm
     var freq = (param.rate/100)*WAVE_FREQ;
     if(param.shape==='static') return { peakCmS:0, isStep:false };
-    if(param.shape==='square' || param.shape==='random') return { peakCmS:Infinity, isStep:true };
+    if(param.shape==='square' || param.shape==='random' || param.shape==='bitmap') return { peakCmS:Infinity, isStep:true };
     var peakMmS;
     if(param.shape==='sine') peakMmS = range*Math.PI*freq;
     else if(param.shape==='triangle') peakMmS = range*2*freq;
@@ -1008,7 +1198,6 @@
   /* ==========================================================================
      CUE DATA
      ========================================================================== */
-  var CATEGORIES = ['All','Motion','Colour','Combo'];
   function deepCopy(o){ return JSON.parse(JSON.stringify(o)); }
   /* The show always starts BLANK — no cues, nothing loaded, nothing running.
      Cues are created by clicking a ＋ tile in the grid (seeded from the
@@ -1036,9 +1225,32 @@
   var layout = { cols:12, pitchX:0.8, pitchZ:1.0, trussH:5.2 };
   var GRID_COLS = layout.cols, GRID_ROWS = 1;
   var rebuildRig = null; /* assigned by the 3D viewport once WebGL is up */
+  /* SELECTION GROUPS — named sets of fixtures picked on the layout grid.
+     Cues and timeline tracks can be scoped to a group; a missing/deleted
+     group falls back to All so playback never silently dies. */
+  var groups = [];
+  function groupById(id){ return groups.find(function(g){ return g.id===id; }); }
+  function groupHas(groupId, wid){
+    if(!groupId) return true;
+    var g = groupById(groupId);
+    return !g || g.ids.indexOf(wid)>=0;
+  }
+  function groupOptionsHtml(selectedId){
+    return '<option value="">All fixtures</option>' + groups.map(function(g){
+      return '<option value="'+g.id+'"'+(g.id===selectedId?' selected':'')+'>'+g.name+' ('+g.ids.length+')</option>';
+    }).join('');
+  }
   var selectedCueId = null;
+  var editingBlockId = null; /* when set, the editor edits a timeline block's custom cue */
+  function editTarget(){
+    if(editingBlockId){
+      var b = blocks.find(function(x){ return x.id===editingBlockId; });
+      if(b && b.custom) return b.custom;
+      editingBlockId = null;
+    }
+    return cueById(selectedCueId);
+  }
   var activeParamTab = 'motion';
-  var currentCategory = 'All';
   var triggerMode = 'toggle';
   var mode = 'running';
 
@@ -1049,6 +1261,7 @@
     red:{loaded:null,state:'stopped'}, blue:{loaded:null,state:'stopped'},
     green:{loaded:null,state:'stopped'}, yellow:{loaded:null,state:'stopped'}
   };
+  var pbRunOrder = []; /* activation order — the latest-started cue wins the params it filters */
   /* parked = emergency state: all axes recalled to top, lights off */
   var activeAnim = { cueIndex:null, playing:false, parked:false };
   /* With no cue selected or running, the rig rests in its power-on state:
@@ -1140,11 +1353,40 @@
     return setActive;
   }
   makeSeg('triggerModeSeg','triggerModeThumb','data-mode', function(v){ triggerMode=v; });
+  /* Single = one cue at a time (firing a cue releases the others);
+     Multi = cues stack via their groups and parameter filters */
+  var cueMode = 'multi';
+  var setCueStackSeg = makeSeg('cueStackSeg','cueStackThumb','data-stack', function(v){
+    cueMode = v;
+    logLine(v==='single' ? 'Cue stack: SINGLE — firing a cue stops the others' : 'Cue stack: MULTI — cues layer via groups and filters');
+  });
 
   var showTabViews = { cues:document.getElementById('cuesTabView'), timeline:document.getElementById('timelineTabView') };
-  makeSeg('showTabSeg','showTabThumb','data-showtab', function(v){
+  /* The Cues/Timeline tab is a hard MODE switch: in Cues mode the timeline
+     is ignored completely; in Timeline mode the cue playbacks are ignored
+     and the timeline owns the rig (even paused, so scrubbing previews). */
+  var showMode = 'cues';
+  var setShowTabSeg = null;
+  function setShowMode(v){
     Object.keys(showTabViews).forEach(function(k){ showTabViews[k].classList.toggle('active', k===v); });
-  });
+    if(setShowTabSeg) setShowTabSeg(v);
+    if(v===showMode) return;
+    showMode = v;
+    if(v==='timeline'){
+      logLine('Timeline mode — running cues hold until a timeline block takes over');
+    } else {
+      /* pause (keep the playhead) — the timeline is ignored in Cues mode */
+      if(tlPlaying){
+        tlPlaying = false;
+        document.getElementById('tlPlay').classList.remove('active');
+        tlPlayIconEl.innerHTML = '<path d="M0 0l9 4.5L0 9z"/>';
+      }
+      if(tlAudioEl) tlAudioEl.pause();
+      logLine('Cues mode — timeline paused; playbacks own the rig');
+    }
+    renderSystemState(); renderViewportHud();
+  }
+  setShowTabSeg = makeSeg('showTabSeg','showTabThumb','data-showtab', setShowMode);
 
   /* ==========================================================================
      PANEL SYSTEM — every panel can float (detach into a movable/resizable
@@ -1156,7 +1398,7 @@
   var panelTitles = {
     panelViewport:'Monitor', panelPresets:'Saved Cues', panelCueTimeline:'Select Cue',
     panelEditor:'Configure Cue', panelPatch:'Patch', panelLive:'Live', panelLibrary:'Winch Library',
-    panelSettings:'Settings', panelLayout:'Rig Layout'
+    panelSettings:'Settings', panelLayout:'Rig Layout', panelGroups:'Selection Groups'
   };
   var detachedPanels = {};
   var zTop = 500;
@@ -1224,13 +1466,273 @@
       sx=e.clientX; sy=e.clientY; sl=parseFloat(panel.style.left)||0; st=parseFloat(panel.style.top)||0;
       panel.style.zIndex = ++zTop;
     });
+    var snapTarget = null;
+    function computeSnap(x, y){
+      var W = window.innerWidth, H = window.innerHeight, TOPB = 48, BOT = H - 30;
+      var m = 26, c = 110, midH = TOPB + (BOT-TOPB)/2;
+      if(x < c && y < TOPB + c) return { l:0, t:TOPB, w:W/2, h:(BOT-TOPB)/2 };
+      if(x > W-c && y < TOPB + c) return { l:W/2, t:TOPB, w:W/2, h:(BOT-TOPB)/2 };
+      if(x < c && y > BOT - c) return { l:0, t:midH, w:W/2, h:(BOT-TOPB)/2 };
+      if(x > W-c && y > BOT - c) return { l:W/2, t:midH, w:W/2, h:(BOT-TOPB)/2 };
+      if(x < m) return { l:0, t:TOPB, w:W/2, h:BOT-TOPB };
+      if(x > W-m) return { l:W/2, t:TOPB, w:W/2, h:BOT-TOPB };
+      if(y < TOPB + m) return { l:0, t:TOPB, w:W, h:BOT-TOPB };
+      if(y > BOT - m) return { l:0, t:midH, w:W, h:(BOT-TOPB)/2 };
+      return null;
+    }
     head.addEventListener('pointermove', function(e){
       if(!dragging) return;
       panel.style.left = Math.max(0, sl+(e.clientX-sx))+'px';
       panel.style.top = Math.max(0, st+(e.clientY-sy))+'px';
+      /* drag toward an edge/corner to snap: halves, quarters, or full */
+      snapTarget = computeSnap(e.clientX, e.clientY);
+      var hint = document.getElementById('snapHint');
+      if(snapTarget){
+        hint.hidden = false;
+        hint.style.left = snapTarget.l+'px'; hint.style.top = snapTarget.t+'px';
+        hint.style.width = snapTarget.w+'px'; hint.style.height = snapTarget.h+'px';
+      } else hint.hidden = true;
     });
-    head.addEventListener('pointerup', function(){ dragging=false; });
+    head.addEventListener('pointerup', function(){
+      dragging = false;
+      document.getElementById('snapHint').hidden = true;
+      if(snapTarget){
+        panel.style.left = snapTarget.l+'px'; panel.style.top = snapTarget.t+'px';
+        panel.style.width = snapTarget.w+'px'; panel.style.height = snapTarget.h+'px';
+        snapTarget = null;
+        window.dispatchEvent(new Event('resize'));
+      }
+    });
   }
+  /* ==========================================================================
+     POP-OUT WINDOWS — a panel moves into its own OS window (same renderer
+     process, DOM adopted across documents), keeps updating live via the
+     document-lookup bridge below, and returns home when the window closes.
+     ========================================================================== */
+  var poppedWindows = {};
+  (function(){
+    /* lookup bridge: main-document queries fall through to popped windows,
+       so every render path keeps finding its elements after adoption */
+    var ngid = document.getElementById.bind(document);
+    document.getElementById = function(id){
+      var r = ngid(id);
+      if(r) return r;
+      for(var k in poppedWindows){ try{ r = poppedWindows[k].document.getElementById(id); }catch(_e){ r = null; } if(r) return r; }
+      return null;
+    };
+    var nqs = document.querySelector.bind(document);
+    document.querySelector = function(sel){
+      var r = nqs(sel);
+      if(r) return r;
+      for(var k in poppedWindows){ try{ r = poppedWindows[k].document.querySelector(sel); }catch(_e){ r = null; } if(r) return r; }
+      return null;
+    };
+    var nqsa = document.querySelectorAll.bind(document);
+    document.querySelectorAll = function(sel){
+      var out = Array.prototype.slice.call(nqsa(sel));
+      for(var k in poppedWindows){
+        try{ out = out.concat(Array.prototype.slice.call(poppedWindows[k].document.querySelectorAll(sel))); }catch(_e){}
+      }
+      return out;
+    };
+  })();
+  function popOutPanel(id){
+    if(poppedWindows[id]){ try{ poppedWindows[id].focus(); }catch(_e){} return; }
+    var panel = document.getElementById(id);
+    if(!panel) return;
+    if(panel.classList.contains('floating')) toggleFloat(id);
+    panel = document.getElementById(id);
+    var w = window.open('', '_blank');
+    if(!w){ logLine('Pop-out was blocked by the window manager','warn'); return; }
+    w.document.title = 'BLK Motion — '+panelTitles[id];
+    var styleEl = nativeMainQuery('style');
+    if(styleEl) w.document.head.appendChild(w.document.importNode(styleEl, true));
+    w.document.body.style.cssText = 'margin:0; background:#0b0b0c; height:100vh; display:flex; flex-direction:column; overflow:hidden;';
+    var placeholder = document.createElement('div');
+    placeholder.className = 'panel-slot-placeholder hatch';
+    placeholder.id = id+'PopSlot';
+    placeholder.innerHTML = '<span>'+panelTitles[id]+' — in its own window</span><button data-popreturn="'+id+'">Return</button>';
+    panel.parentNode.insertBefore(placeholder, panel);
+    var adopted = w.document.adoptNode(panel);
+    adopted.classList.add('popped');
+    w.document.body.appendChild(adopted);
+    poppedWindows[id] = w;
+    w.addEventListener('pagehide', function(){ returnPopped(id); });
+    logLine(panelTitles[id]+' popped out to its own window');
+    window.dispatchEvent(new Event('resize'));
+  }
+  function nativeMainQuery(sel){
+    /* style lookup must NOT go through the bridge */
+    return Document.prototype.querySelector.call(document, sel);
+  }
+  function returnPopped(id){
+    var w = poppedWindows[id];
+    if(!w) return;
+    delete poppedWindows[id];
+    var slot = Document.prototype.getElementById.call(document, id+'PopSlot');
+    var panel = null;
+    try{ panel = w.document.getElementById(id); }catch(_e){}
+    if(panel && slot){
+      var back = document.adoptNode(panel);
+      back.classList.remove('popped');
+      slot.parentNode.replaceChild(back, slot);
+    } else if(slot){ slot.parentNode.removeChild(slot); }
+    try{ w.close(); }catch(_e){}
+    logLine(panelTitles[id]+' returned to the app window');
+    window.dispatchEvent(new Event('resize'));
+  }
+
+  /* ==========================================================================
+     WINDOW LAYOUTS — capture every panel's docked/floating/closed state (and
+     the active rail view), saved on this machine via settings.
+     ========================================================================== */
+  function captureWindowLayout(){
+    var stateP = {};
+    Object.keys(panelTitles).forEach(function(id){
+      if(poppedWindows[id]){ stateP[id] = { mode:'docked' }; return; } /* popped panels are saved as docked */
+      var el = Document.prototype.getElementById.call(document, id);
+      if(!el){ stateP[id] = { mode:'closed' }; return; }
+      if(el.classList.contains('floating')){
+        stateP[id] = { mode:'floating',
+          l: parseFloat(el.style.left)||0, t: parseFloat(el.style.top)||0,
+          w: parseFloat(el.style.width)||420, h: parseFloat(el.style.height)||320 };
+      } else stateP[id] = { mode:'docked' };
+    });
+    var activeRail = nativeMainQuery('.rail-btn.active');
+    var colR = nativeMainQuery('.col-right');
+    function flexOf(id){ var el = Document.prototype.getElementById.call(document, id) || (detachedPanels||{})[id]; return el ? el.style.flex || '' : ''; }
+    return { panels: stateP, view: activeRail ? activeRail.getAttribute('data-view') : 'show',
+      sizes: { rightW: colR ? colR.style.width || '' : '',
+               cue: flexOf('panelCueTimeline'), ed: flexOf('panelEditor'),
+               vp: flexOf('panelViewport'), pr: flexOf('panelPresets') } };
+  }
+  function applyWindowLayout(st){
+    if(!st || !st.panels) return;
+    /* normalize everything to docked first */
+    Object.keys(panelTitles).forEach(function(id){
+      if(poppedWindows[id]) returnPopped(id);
+      if(!Document.prototype.getElementById.call(document, id)) restorePanel(id);
+      var el = Document.prototype.getElementById.call(document, id);
+      if(el && el.classList.contains('floating')) toggleFloat(id);
+    });
+    Object.keys(st.panels).forEach(function(id){
+      if(!panelTitles[id]) return;
+      var ps = st.panels[id];
+      if(ps.mode==='closed') closePanel(id);
+      else if(ps.mode==='floating'){
+        toggleFloat(id);
+        var el = Document.prototype.getElementById.call(document, id);
+        if(el){ el.style.left = ps.l+'px'; el.style.top = ps.t+'px'; el.style.width = ps.w+'px'; el.style.height = ps.h+'px'; }
+      }
+    });
+    if(st.view){
+      var rb = nativeMainQuery('.rail-btn[data-view="'+st.view+'"]');
+      if(rb) rb.click();
+    }
+    if(st.sizes){
+      var colR = nativeMainQuery('.col-right');
+      if(colR && st.sizes.rightW){ colR.style.width = st.sizes.rightW; colR.style.flex = '0 0 auto'; }
+      [['panelCueTimeline','cue'],['panelEditor','ed'],['panelViewport','vp'],['panelPresets','pr']].forEach(function(pair){
+        var el = Document.prototype.getElementById.call(document, pair[0]);
+        if(el && st.sizes[pair[1]]) el.style.flex = st.sizes[pair[1]];
+      });
+    }
+    window.dispatchEvent(new Event('resize'));
+  }
+  function renderLayoutSel(){
+    var sel = document.getElementById('layoutSel');
+    var cur = sel.value;
+    settings.layouts = settings.layouts || [];
+    sel.innerHTML = '<option value="">Layouts…</option>' + settings.layouts.map(function(L, i){
+      return '<option value="'+i+'">'+L.name+'</option>';
+    }).join('');
+    if(cur!=='' && settings.layouts[+cur]) sel.value = cur;
+  }
+  function wireWindowLayouts(){
+    settings.layouts = settings.layouts || [];
+    renderLayoutSel();
+    document.getElementById('layoutSel').addEventListener('change', function(){
+      if(this.value==='') return;
+      var L = settings.layouts[+this.value];
+      if(L){ applyWindowLayout(L.state); logLine('Layout applied: '+L.name); }
+    });
+    document.getElementById('layoutSaveBtn').addEventListener('click', function(){
+      var sel = document.getElementById('layoutSel');
+      var st = captureWindowLayout();
+      if(sel.value!=='' && settings.layouts[+sel.value]){
+        settings.layouts[+sel.value].state = st;
+        logLine('Layout updated: '+settings.layouts[+sel.value].name);
+      } else {
+        settings.layouts.push({ name:'Layout '+(settings.layouts.length+1), state:st });
+        renderLayoutSel();
+        sel.value = String(settings.layouts.length-1);
+        logLine('Layout saved: Layout '+settings.layouts.length);
+      }
+      saveSettings();
+    });
+    document.getElementById('layoutDelBtn').addEventListener('click', function(){
+      var sel = document.getElementById('layoutSel');
+      if(sel.value==='') return;
+      var L = settings.layouts.splice(+sel.value, 1)[0];
+      saveSettings();
+      renderLayoutSel();
+      sel.value = '';
+      logLine('Layout deleted: '+(L ? L.name : ''));
+    });
+    /* pop-out button on every panel head */
+    Array.prototype.slice.call(document.querySelectorAll('.panel [data-float]')).forEach(function(fb){
+      var pid = fb.getAttribute('data-float');
+      var b = document.createElement('button');
+      b.className = 'panel-head-btn';
+      b.setAttribute('data-popout', pid);
+      b.title = 'Pop out to a separate window';
+      b.innerHTML = '<svg viewBox="0 0 16 16" width="13" height="13"><rect x="2.5" y="5.5" width="7" height="7" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M6 3.5h6.5V10" fill="none" stroke="currentColor" stroke-width="1.3"/></svg>';
+      fb.parentNode.insertBefore(b, fb);
+    });
+  }
+
+  /* ==========================================================================
+     DOCK SPLITTERS — drag the seams between docked sections to resize them
+     in place. Neighbouring placeholders (floated/closed panels) are inert.
+     ========================================================================== */
+  function wireSplitter(sp){
+    var dragging = false;
+    sp.addEventListener('pointerdown', function(e){ dragging = true; sp.setPointerCapture(e.pointerId); e.preventDefault(); });
+    sp.addEventListener('pointermove', function(e){
+      if(!dragging) return;
+      if(sp.classList.contains('splitter-v')){
+        var right = sp.nextElementSibling;
+        if(!right) return;
+        var pr = sp.parentElement.getBoundingClientRect();
+        var w = Math.max(280, Math.min(pr.width - 420, pr.right - e.clientX));
+        right.style.width = w+'px';
+        right.style.flex = '0 0 auto';
+      } else {
+        var prev = sp.previousElementSibling, next = sp.nextElementSibling;
+        if(!prev || !next || !prev.classList.contains('panel') || !next.classList.contains('panel')) return;
+        var cr = sp.parentElement.getBoundingClientRect();
+        var pct = Math.max(15, Math.min(85, (e.clientY - cr.top)/cr.height*100));
+        prev.style.flex = '1 1 '+pct+'%';
+        next.style.flex = '1 1 '+(100-pct)+'%';
+      }
+      window.dispatchEvent(new Event('resize'));
+    });
+    sp.addEventListener('pointerup', function(){ dragging = false; });
+  }
+  function wireDockSplitters(){
+    function insertBefore(el, horizontal){
+      if(!el) return;
+      var sp = document.createElement('div');
+      sp.className = horizontal ? 'splitter-h' : 'splitter-v';
+      sp.title = 'Drag to resize';
+      el.parentNode.insertBefore(sp, el);
+      wireSplitter(sp);
+    }
+    insertBefore(Document.prototype.getElementById.call(document, 'panelEditor'), true);      /* cue grid ⟷ editor */
+    insertBefore(Document.prototype.getElementById.call(document, 'panelPresets'), true);     /* monitor ⟷ saved cues */
+    insertBefore(Document.prototype.querySelector.call(document, '.col-right'), false);       /* left ⟷ right column */
+  }
+
   function wirePanelResize(panel){
     var rh = panel.querySelector('.panel-resize-handle');
     if(!rh) return;
@@ -1268,6 +1770,8 @@
     var floatBtn = t.closest('[data-float]'); if(floatBtn){ toggleFloat(floatBtn.getAttribute('data-float')); return; }
     var restoreBtn = t.closest('[data-restore]'); if(restoreBtn){ restorePanel(restoreBtn.getAttribute('data-restore')); return; }
     var dockBtn = t.closest('[data-dockback]'); if(dockBtn){ toggleFloat(dockBtn.getAttribute('data-dockback')); return; }
+    var popBtn = t.closest('[data-popout]'); if(popBtn){ popOutPanel(popBtn.getAttribute('data-popout')); return; }
+    var popRet = t.closest('[data-popreturn]'); if(popRet){ returnPopped(popRet.getAttribute('data-popreturn')); return; }
     var rmModel = t.closest('[data-remove-model]'); if(rmModel){ removeModel(+rmModel.getAttribute('data-remove-model')); return; }
     var rmFitting = t.closest('[data-remove-fitting]'); if(rmFitting){ removeFitting(+rmFitting.getAttribute('data-remove-fitting')); return; }
   });
@@ -1276,11 +1780,37 @@
   /* ==========================================================================
      CUE GRID + PRESET GRID (Presets is the compact quick-fire twin in col-right)
      ========================================================================== */
+  /* CUE PAGES — user-named tabs replacing the fixed category filters. Each
+     cue belongs to a page; double-click a tab to rename it, ＋ adds one. */
+  var pages = [{ id:'p1', name:'Page 1' }];
+  var currentPageId = 'p1';
+  function pageOf(c){ return c.pageId || 'p1'; }
   var catTabsEl = document.getElementById('catTabs');
-  function renderCatTabs(){
-    catTabsEl.innerHTML = CATEGORIES.map(function(c){ return '<button class="cat-tab'+(c===currentCategory?' active':'')+'" data-cat="'+c+'">'+c+'</button>'; }).join('');
-    Array.prototype.slice.call(catTabsEl.querySelectorAll('.cat-tab')).forEach(function(btn){
-      btn.addEventListener('click', function(){ currentCategory = btn.getAttribute('data-cat'); renderCatTabs(); renderCueGrid(); });
+  function renderPageTabs(){
+    catTabsEl.innerHTML = pages.map(function(p){
+      return '<button class="cat-tab'+(p.id===currentPageId?' active':'')+'" data-page="'+p.id+'" title="Double-click to rename">'+p.name+'</button>';
+    }).join('') + '<button class="cat-tab" data-addpage="1" title="Add a page">＋ Page</button>';
+    Array.prototype.slice.call(catTabsEl.querySelectorAll('[data-page]')).forEach(function(btn){
+      btn.addEventListener('click', function(){ currentPageId = btn.getAttribute('data-page'); renderPageTabs(); renderCueGrid(); });
+      btn.addEventListener('dblclick', function(){
+        var pg = pages.find(function(x){ return x.id===btn.getAttribute('data-page'); });
+        if(!pg) return;
+        var inp = document.createElement('input');
+        inp.value = pg.name; inp.className = 'page-rename';
+        btn.textContent = ''; btn.appendChild(inp); inp.focus(); inp.select();
+        function commit(){ pg.name = inp.value.trim() || pg.name; renderPageTabs(); }
+        inp.addEventListener('blur', commit);
+        inp.addEventListener('keydown', function(e){ if(e.key==='Enter') inp.blur(); if(e.key==='Escape'){ inp.value = pg.name; inp.blur(); } });
+        inp.addEventListener('click', function(e){ e.stopPropagation(); });
+      });
+    });
+    var addBtn = catTabsEl.querySelector('[data-addpage]');
+    if(addBtn) addBtn.addEventListener('click', function(){
+      var id = 'p'+Date.now();
+      pages.push({ id:id, name:'Page '+(pages.length+1) });
+      currentPageId = id;
+      renderPageTabs(); renderCueGrid();
+      logLine('Cue page added — double-click the tab to rename it');
     });
   }
   function cueSwatch(cue){ return 'linear-gradient(180deg,'+cue.colour.lowHex+','+cue.colour.highHex+')'; }
@@ -1293,6 +1823,7 @@
       if(isPlaying) stopPlayback(c.pb);
       else { loadCue(id); startPlayback(c.pb); }
     } else if(triggerMode==='restart'){ loadCue(id); startPlayback(c.pb); }
+    editingBlockId = null;
     selectedCueId = id; renderCueGrid(); renderEditor();
   }
 
@@ -1302,16 +1833,17 @@
     var id = cues.reduce(function(m,c){ return Math.max(m, c.id); }, -1) + 1;
     var c;
     if(fromPreset){
-      c = { id:id, name:fromPreset.name, category:'Combo', pb:PB_COLORS[id%PB_COLORS.length], dur:4,
+      c = { id:id, name:fromPreset.name, category:'Combo', pageId:currentPageId, pb:PB_COLORS[id%PB_COLORS.length], dur:4,
             motion:deepCopy(fromPreset.motion), dimmer:deepCopy(fromPreset.dimmer), colour:deepCopy(fromPreset.colour),
             syncPhase:!!fromPreset.syncPhase };
     } else {
       var colour = defaultParam('sine', 0, 1); colour.lowHex='#e2a63d'; colour.highHex='#ececea';
-      c = { id:id, name:'Cue '+pad(id+1), category: currentCategory!=='All' ? currentCategory : 'Combo',
+      c = { id:id, name:'Cue '+pad(id+1), category:'Combo', pageId:currentPageId,
             pb:PB_COLORS[id%PB_COLORS.length], dur:4,
             motion:defaultParam('sine', 0, 4500), dimmer:defaultParam('sine', 10, 100), colour:colour, syncPhase:false };
     }
     cues.push(c);
+    editingBlockId = null;
     selectedCueId = id;
     logLine('Cue created: '+pad(id+1)+' — '+c.name+(fromPreset?' (from preset)':''));
     renderCueGrid(); renderEditor(); renderViewportHud();
@@ -1320,9 +1852,9 @@
 
   var cueGridEl = document.getElementById('cueGrid');
   function renderCueGrid(){
-    var list = cues.filter(function(c){ return currentCategory==='All' || c.category===currentCategory; });
+    var list = cues.filter(function(c){ return pageOf(c)===currentPageId; });
     var rigMinSpeed = winchData.length ? winchData.reduce(function(m,w){ return Math.min(m, w.maxSpeed); }, Infinity) : DEFAULT_SPEED_CMS;
-    var TOTAL = 24, html='';
+    var TOTAL = Math.max(24, Math.ceil((list.length+1)/6)*6), html=''; /* the page always has spare ＋ slots */
     for(var i=0;i<TOTAL;i++){
       var c = list[i];
       if(!c){ html += '<div class="cue-tile empty hatch" data-newslot="1" title="Create a new cue here — seeded from the selected preset if one is picked"><span>＋</span></div>'; continue; }
@@ -1411,7 +1943,7 @@
   }
   document.getElementById('presetApplyBtn').addEventListener('click', function(){
     if(selectedPresetIdx===null){ logLine('Select a preset first, then Apply to Cue','warn'); return; }
-    var p = presets[selectedPresetIdx], c = cueById(selectedCueId);
+    var p = presets[selectedPresetIdx], c = editTarget();
     if(!p) return;
     if(!c){ createCue(p); return; } /* blank show: applying a preset creates the cue */
     c.motion = deepCopy(p.motion); c.dimmer = deepCopy(p.dimmer); c.colour = deepCopy(p.colour); c.syncPhase = !!p.syncPhase;
@@ -1419,14 +1951,14 @@
     renderCueGrid(); renderEditor(); renderViewportHud();
   });
   document.getElementById('savePresetBtn').addEventListener('click', function(){
-    var c = cueById(selectedCueId);
+    var c = editTarget();
     if(!c) return;
     presets.push({ name:c.name, motion:deepCopy(c.motion), dimmer:deepCopy(c.dimmer), colour:deepCopy(c.colour), syncPhase:!!c.syncPhase });
     renderPresetGrid();
     logLine('Preset saved: '+c.name);
   });
   document.getElementById('syncPhaseBtn').addEventListener('click', function(){
-    var c = cueById(selectedCueId);
+    var c = editTarget();
     if(!c) return;
     c.syncPhase = !c.syncPhase;
     logLine(c.syncPhase ? 'Phases synced — Dimmer & Colour follow Motion' : 'Phases independent');
@@ -1442,20 +1974,62 @@
     pb.loaded = i; pb.state = 'loaded';
     logLine('Cue loaded to '+c.pb.toUpperCase()+': '+c.name);
   }
+  /* Why-is-this-cue-silent checks, logged the moment it starts */
+  function cueOutputDiagnosis(c){
+    var issues = [];
+    if(c.groupId){
+      var g = groupById(c.groupId);
+      if(!g) issues.push('its group was deleted — it now drives ALL fixtures');
+      else {
+        var nIn = winchData.filter(function(w){ return g.ids.indexOf(w.id)>=0; }).length;
+        if(!nIn) issues.push('its group "'+g.name+'" matches 0 patched fixtures — NO output');
+        else if(nIn < g.ids.length) issues.push('its group covers only '+nIn+'/'+g.ids.length+' fixtures (others no longer patched)');
+      }
+    }
+    if(c.filter && !c.filter.motion && !c.filter.dimmer && !c.filter.colour)
+      issues.push('ALL parameter filters (M/D/C) are off — the cue drives nothing');
+    else if(c.filter && (!c.filter.dimmer || !c.filter.colour))
+      issues.push('filters: '+(!c.filter.dimmer?'Dimmer OFF ':'')+(!c.filter.colour?'Colour OFF':'')+' — those fall back to dark idle unless another cue drives them');
+    ['motion','dimmer','colour'].forEach(function(k){
+      var pk = c[k];
+      if(pk && pk.shape==='bitmap'){
+        if(!pk.bitmap || !pk.bitmap.src) issues.push(k+' is Bitmap with NO image loaded — outputs '+(k==='colour'?'the fallback gradient':'Low only'));
+        else if(!bitmapCache[pk.bitmap.src]) issues.push(k+' bitmap is still decoding');
+        else if(k!=='colour') issues.push(k+' is bitmap-driven — dark pixels output Low; a mostly-black source reads as no output');
+      }
+    });
+    if(c.dimmer && c.dimmer.shape!=='bitmap' && c.dimmer.low===0 && c.dimmer.high===0 && (!c.filter || c.filter.dimmer))
+      issues.push('dimmer Low and High are both 0 — lights stay dark');
+    return issues;
+  }
   function startPlayback(color){
+    if(activeAnim.parked){ logLine('E-STOP is latched — press Reset E-Stop before running anything','warn'); return; }
     if(mode!=='running'){ logLine('Cannot start '+color.toUpperCase()+' — in Edit mode','warn'); return; }
     var pb = playbacks[color];
     if(pb.loaded===null) return;
     pb.state = 'running';
-    activeAnim.cueIndex = pb.loaded; activeAnim.playing = true; activeAnim.parked = false;
+    activeAnim.parked = false;
+    if(cueMode==='single'){
+      /* one cue at a time: everything else releases as this one fires */
+      PB_COLORS.forEach(function(k){ if(k!==color && playbacks[k].state==='running') playbacks[k].state='stopped'; });
+      pbRunOrder = [];
+    } else {
+      pbRunOrder = pbRunOrder.filter(function(k){ return k!==color; });
+    }
+    pbRunOrder.push(color);
+    activeAnim.cueIndex = pb.loaded; activeAnim.playing = true;
     motionPaused = false;
     logLine(color.toUpperCase()+' start — '+cueById(pb.loaded).name,'ok');
+    cueOutputDiagnosis(cueById(pb.loaded)).forEach(function(issue){
+      logLine('Cue check — '+cueById(pb.loaded).name+': '+issue, 'warn');
+    });
     renderCueGrid(); renderViewportHud(); renderSystemState();
   }
   function stopPlayback(color){
     var pb = playbacks[color];
     if(pb.state!=='running') return;
     pb.state = 'stopped';
+    pbRunOrder = pbRunOrder.filter(function(k){ return k!==color; });
     var stillRunning = PB_COLORS.filter(function(k){ return playbacks[k].state==='running'; });
     if(stillRunning.length){ activeAnim.cueIndex = playbacks[stillRunning[stillRunning.length-1]].loaded; }
     else { activeAnim.playing = false; }
@@ -1467,8 +2041,16 @@
      (mode switch) just halts playbacks in place. */
   function allStop(emergency){
     PB_COLORS.forEach(function(k){ if(playbacks[k].state==='running') playbacks[k].state='stopped'; });
+    pbRunOrder = [];
     activeAnim.playing = false;
     if(emergency) activeAnim.parked = true;
+    if(emergency && tlPlaying) tlStopFn(); /* panic also stops the timeline + audio */
+    /* stop always beats manual test control */
+    if(emergency && (testEnabled || calibrationState)){
+      testEnabled = false; calibrationState = null;
+      var cm = document.getElementById('calibrationModal'); if(cm) cm.hidden = true;
+      if(typeof renderTestStatus==='function') renderTestStatus();
+    }
     renderCueGrid(); renderViewportHud(); renderSystemState();
   }
 
@@ -1493,6 +2075,12 @@
     var pb = document.getElementById('pauseBtn');
     pb.textContent = motionPaused ? 'Resume Motion' : 'Pause Motion';
     pb.classList.toggle('on', motionPaused);
+    var stopBtn = document.getElementById('btnStop');
+    stopBtn.textContent = activeAnim.parked ? 'Reset E-Stop' : 'Stop All';
+    stopBtn.classList.toggle('reset', activeAnim.parked);
+    stopBtn.title = activeAnim.parked
+      ? 'Clear the E-Stop latch — the rig stays at rest until you fire something'
+      : 'Emergency: stop everything, recall axes to top, output off';
   }
   var modeThumbEl = document.getElementById('modeThumb');
   var setModeSeg = null;
@@ -1501,7 +2089,7 @@
     mode = next;
     if(setModeSeg) setModeSeg(mode==='running'?'run':'edit');
     if(modeThumbEl) modeThumbEl.style.background = mode==='running' ? 'var(--green)' : 'var(--blue)';
-    if(mode==='editing'){ allStop(false); activeAnim.parked = false; logLine('Edit mode — output blocked, all playbacks stopped','warn'); }
+    if(mode==='editing'){ allStop(false); logLine('Edit mode — output blocked, all playbacks stopped','warn'); }
     else { logLine('Live mode — output enabled'); }
     renderSystemState();
   }
@@ -1512,7 +2100,18 @@
     logLine(motionPaused ? 'Motion paused — axes hold position, output stays on' : 'Motion resumed');
     renderSystemState();
   });
-  document.getElementById('btnStop').addEventListener('click', function(){ allStop(true); logLine('STOP ALL — axes recalled to top, output off','warn'); });
+  document.getElementById('btnStop').addEventListener('click', function(){
+    if(activeAnim.parked){
+      /* deliberate reset: clear the latch; the rig STAYS at rest until
+         something is explicitly fired */
+      activeAnim.parked = false;
+      logLine('E-Stop reset — rig remains at rest; fire a cue or timeline when ready','ok');
+      renderCueGrid(); renderViewportHud(); renderSystemState();
+    } else {
+      allStop(true);
+      logLine('STOP ALL — axes recalled to top, output off. Press Reset E-Stop to clear the latch','warn');
+    }
+  });
 
   /* ==========================================================================
      WAVE + MAtricks PREVIEW CANVASES
@@ -1536,7 +2135,9 @@
     /* live phase playhead: where the effect clock sits in its cycle right
        now, riding on the wave (first of the two drawn periods) */
     if(liveFrac!==undefined && shape!=='bitmap'){
-      var fx = ((liveFrac%1)+1)%1;
+      /* travels the FULL preview width across the two drawn periods, so it
+         never jumps back at half way */
+      var fx = ((liveFrac%2)+2)%2;
       var px = fx*(w/2);
       var pv = waveValue(shape, fx);
       var py = padY+(1-pv)*gh;
@@ -1572,12 +2173,41 @@
       }
     }
   }
-  function drawBitmapPlaceholder(canvas){
+  function drawBitmapPlaceholder(canvas, param){
     if(!canvas) return;
     var ctx = canvas.getContext('2d'); var w=canvas.width, h=canvas.height;
+    var c = param && param.bitmap && param.bitmap.src ? bitmapCache[param.bitmap.src] : null;
+    if(c){
+      ctx.imageSmoothingEnabled = false;
+      ctx.clearRect(0,0,w,h);
+      ctx.drawImage(c.canvas, 0, 0, w, h);
+      return;
+    }
     var grad = ctx.createLinearGradient(0,0,w,h);
     grad.addColorStop(0,'#e2a63d'); grad.addColorStop(0.5,'#5590d9'); grad.addColorStop(1,'#b06cc4');
     ctx.fillStyle=grad; ctx.fillRect(0,0,w,h);
+    ctx.fillStyle='rgba(0,0,0,.55)'; ctx.fillRect(0,0,w,h);
+    ctx.fillStyle='rgba(236,236,234,.9)'; ctx.font='11px ui-monospace,monospace';
+    ctx.fillText('No image loaded — press Load Image…', 14, h/2+4);
+  }
+  function drawBitmapParamPreview(canvas, param){
+    if(!canvas) return;
+    var dpr = Math.min(window.devicePixelRatio||1,2);
+    var w = canvas.clientWidth||250, h = canvas.clientHeight||56;
+    canvas.width=w*dpr; canvas.height=h*dpr;
+    var ctx = canvas.getContext('2d'); ctx.setTransform(dpr,0,0,dpr,0,0);
+    ctx.clearRect(0,0,w,h);
+    var c = param.bitmap && param.bitmap.src ? bitmapCache[param.bitmap.src] : null;
+    if(c){
+      ctx.imageSmoothingEnabled = false;
+      ctx.filter = 'grayscale(1)';
+      ctx.drawImage(c.canvas, 0, 0, w, h);
+      ctx.filter = 'none';
+    } else {
+      ctx.fillStyle='var(--recess)'; ctx.fillStyle='rgba(255,255,255,.04)'; ctx.fillRect(0,0,w,h);
+      ctx.fillStyle='rgba(156,156,152,.9)'; ctx.font='10.5px ui-monospace,monospace';
+      ctx.fillText('No image loaded — press Load Image…', 10, h/2+4);
+    }
   }
 
   /* ==========================================================================
@@ -1593,6 +2223,26 @@
     return '<div class="param-tabs">'+PARAM_TABS.map(function(t){
       return '<button class="param-tab'+(activeParamTab===t.key?' active':'')+'" data-paramtab="'+t.key+'"><span class="tab-dot" style="background:'+t.color+'"></span>'+t.label+'</button>';
     }).join('')+'</div>';
+  }
+  /* What the cue's mm Low/High ACTUALLY realise once each fixture's patch
+     limits and its model's real lift length are applied — the hard truth
+     behind the editor's raw mm numbers. */
+  function realisedRangeNote(param){
+    if(!winchData.length) return '';
+    var loMin=Infinity, loMax=-Infinity, hiMin=Infinity, hiMax=-Infinity;
+    winchData.forEach(function(w){
+      var lift = modelLiftM(modelById(w.modelId));
+      function realise(mm){
+        var demand = Math.max(0, Math.min(255, (mm/(lift*1000))*255));
+        var dmx = w.topLimit + (demand/255)*(w.bottomLimit - w.topLimit);
+        return (dmx/255)*lift;
+      }
+      var lo = realise(param.low), hi = realise(param.high);
+      loMin=Math.min(loMin,lo); loMax=Math.max(loMax,lo);
+      hiMin=Math.min(hiMin,hi); hiMax=Math.max(hiMax,hi);
+    });
+    function fmt(a,b){ return Math.abs(a-b)<0.005 ? a.toFixed(2)+' m' : a.toFixed(2)+'–'+b.toFixed(2)+' m'; }
+    return '<p class="speed-note">Realised drop with patch limits: Low → '+fmt(loMin,loMax)+' · High → '+fmt(hiMin,hiMax)+'</p>';
   }
   function speedNoteHtml(param){
     var info = motionSpeedInfo(param);
@@ -1640,20 +2290,40 @@
     return '<div class="shape-row">'+row+'</div>';
   }
   function renderMotionOrDimmerSection(key, param){
-    var cueRef = cueById(selectedCueId);
+    var cueRef = editTarget();
     var syncNote = (key!=='motion' && cueRef && cueRef.syncPhase) ? '<p class="speed-note">Sync is on — this section\'s phase, rate and direction follow Motion.</p>' : '';
+    if(param.shape==='bitmap'){
+      var bm = param.bitmap || {};
+      return '<div class="param-section" data-key="'+key+'"><div class="param-body">' +
+        '<div class="param-col">' +
+          syncNote +
+          '<div class="col-label">Source</div>' +
+          shapeRowHtml(key, param, true) +
+          '<canvas class="wave-preview" id="bmprev-'+key+'" height="56"></canvas>' +
+          '<div class="preset-actions"><button class="flat-btn" data-loadbitmap="'+key+'">Load Image…</button></div>' +
+          '<div class="lohi-row"><div class="field"><label>Low'+(key==='motion'?' (mm)':' (%)')+'</label><input type="number" data-p="'+key+'" data-f="low" value="'+param.low+'"></div><div class="field"><label>High'+(key==='motion'?' (mm)':' (%)')+'</label><input type="number" data-p="'+key+'" data-f="high" value="'+param.high+'"></div></div>' +
+          '<div class="lohi-row"><div class="field"><label>Black point</label><input type="number" min="0" max="255" data-p="'+key+'" data-bmf="min" value="'+(bm.min===undefined?0:bm.min)+'"></div><div class="field"><label>White point</label><input type="number" min="0" max="255" data-p="'+key+'" data-bmf="max" value="'+(bm.max===undefined?255:bm.max)+'"></div></div>' +
+          '<div class="knob-row">' +
+            '<div class="knob-wrap"><div class="knob" data-p="'+key+'" data-f="rate" data-val="'+param.rate+'"><div class="tick" style="transform:rotate('+(param.rate/100*270-135)+'deg)"></div></div><div class="knob-label">Rate</div><div class="knob-val">'+param.rate+'%</div></div>' +
+            '<div class="knob-wrap"><div class="knob" data-p="'+key+'" data-f="phase" data-val="'+param.phase+'"><div class="tick" style="transform:rotate('+(param.phase/360*270-135)+'deg)"></div></div><div class="knob-label">Phase</div><div class="knob-val">'+param.phase+'°</div></div>' +
+          '</div>' +
+          '<p class="speed-note">Black → Low, white → High; Black/White points add contrast. The image scrolls across the rig in the chosen Direction at Rate.'+(key==='motion'?' Pixel edges imply jumps — the rated-speed slew smooths them, flagged red when saturated.':'')+'</p>' +
+        '</div>' +
+        distColHtml(key, param) +
+      '</div></div>';
+    }
     return '<div class="param-section" data-key="'+key+'"><div class="param-body">' +
       '<div class="param-col">' +
         syncNote +
         '<div class="col-label">Waveform</div>' +
-        shapeRowHtml(key, param, false) +
+        shapeRowHtml(key, param, true) +
         '<canvas class="wave-preview" id="wave-'+key+'" height="56"></canvas>' +
         '<div class="lohi-row"><div class="field"><label>Low'+(key==='motion'?' (mm)':' (%)')+'</label><input type="number" data-p="'+key+'" data-f="low" value="'+param.low+'"></div><div class="field"><label>High'+(key==='motion'?' (mm)':' (%)')+'</label><input type="number" data-p="'+key+'" data-f="high" value="'+param.high+'"></div></div>' +
         '<div class="knob-row">' +
           '<div class="knob-wrap"><div class="knob" data-p="'+key+'" data-f="rate" data-val="'+param.rate+'"><div class="tick" style="transform:rotate('+(param.rate/100*270-135)+'deg)"></div></div><div class="knob-label">Rate</div><div class="knob-val">'+param.rate+'%</div></div>' +
-          '<div class="knob-wrap"><div class="knob" data-p="'+key+'" data-f="phase" data-val="'+param.phase+'"><div class="tick" style="transform:rotate('+(param.phase/100*270-135)+'deg)"></div></div><div class="knob-label">Phase</div><div class="knob-val">'+param.phase+'%</div></div>' +
+          '<div class="knob-wrap"><div class="knob" data-p="'+key+'" data-f="phase" data-val="'+param.phase+'"><div class="tick" style="transform:rotate('+(param.phase/360*270-135)+'deg)"></div></div><div class="knob-label">Phase</div><div class="knob-val">'+param.phase+'°</div></div>' +
         '</div>' +
-        (key==='motion' ? speedNoteHtml(param) : '') +
+        (key==='motion' ? speedNoteHtml(param)+realisedRangeNote(param) : '') +
       '</div>' +
       distColHtml(key, param) +
     '</div></div>';
@@ -1673,28 +2343,69 @@
       col1 = '<div class="param-col">' +
         '<div class="col-label">Source</div>' +
         shapeRowHtml('colour', param, true) +
-        '<div class="bitmap-canvas-wrap"><canvas id="bitmapCanvas" width="320" height="120"></canvas><div class="canvas-overlay" id="bitmapOverlay" style="left:22%;top:20%;width:56%;height:60%;"></div></div>' +
-        '<p class="bitmap-note">The overlay is the fixture canvas mapped onto the image — drag to reposition.</p>' +
+        '<div class="bitmap-canvas-wrap"><canvas id="bitmapCanvas" width="320" height="120"></canvas></div>' +
+        '<div class="preset-actions"><button class="flat-btn" data-loadbitmap="colour">Load Image…</button></div>' +
+        '<p class="bitmap-note">Each fixture takes the pixel RGB under its layout position; the image scrolls in the chosen Direction at Rate.</p>' +
       '</div>';
-      col2 = '<div class="param-col">' +
-        '<div class="col-label">Sampling</div>' +
-        '<div class="sample-mode-row"><button class="sample-btn'+(param.sampleMode==='center'?' active':'')+'" data-samplemode="center">Center pixel</button><button class="sample-btn'+(param.sampleMode==='scan'?' active':'')+'" data-samplemode="scan">Scan over time</button></div>' +
-        '<div class="col-label" style="margin-top:6px;">Content mode</div>' +
-        '<div class="sample-mode-row">' + ['none','clip','wrap'].map(function(m){ return '<button class="sample-btn'+(param.contentMode===m?' active':'')+'" data-contentmode="'+m+'" style="text-transform:capitalize;">'+m+'</button>'; }).join('') + '</div>' +
-      '</div>';
+      col2 = distColHtml('colour', param); /* Direction = the bitmap's scroll direction */
     }
     return '<div class="param-section" data-key="colour"><div class="param-body">'+col1+col2+'</div></div>';
   }
 
   var paramSectionsEl = document.getElementById('paramSections');
+  var pendingBitmapKey = null;
+  document.getElementById('bitmapFileInp').addEventListener('change', function(){
+    var f = this.files && this.files[0];
+    this.value = '';
+    if(!f || !pendingBitmapKey) return;
+    var target = editTarget();
+    if(!target) return;
+    var key = pendingBitmapKey;
+    var rd = new FileReader();
+    if(f.type && f.type.indexOf('video/')===0){
+      if(f.size > 12*1024*1024){ logLine('Video too large ('+Math.round(f.size/1048576)+' MB) — keep bitmap videos under 12 MB','warn'); return; }
+      rd.onload = function(){
+        var src = rd.result; /* stored as-is in the show file */
+        var pp = target[key];
+        if(!pp) return;
+        if(!pp.bitmap) pp.bitmap = { min:0, max:255 };
+        pp.bitmap.src = src;
+        ensureBitmapCache(src);
+        logLine('Moving bitmap loaded on '+key+' — '+f.name+' ('+Math.round(f.size/1024)+' KB, loops muted)'+(key!=='colour'?', black→Low white→High':''));
+        renderEditor(); renderCueGrid();
+      };
+      rd.readAsDataURL(f);
+      return;
+    }
+    rd.onload = function(){
+      var img = new Image();
+      img.onload = function(){
+        /* re-encode capped at 192 px so the show file stays sane */
+        var cw = Math.max(1, Math.min(192, img.width));
+        var chh = Math.max(1, Math.round(cw*img.height/Math.max(1, img.width)));
+        var cv = document.createElement('canvas'); cv.width = cw; cv.height = chh;
+        var cx = cv.getContext('2d'); cx.drawImage(img, 0, 0, cw, chh);
+        var src = cv.toDataURL('image/png');
+        bitmapCache[src] = { data: cx.getImageData(0, 0, cw, chh).data, w: cw, h: chh, canvas: cv };
+        var pp = target[key];
+        if(!pp) return;
+        if(!pp.bitmap) pp.bitmap = { min:0, max:255 };
+        pp.bitmap.src = src;
+        logLine('Bitmap loaded on '+key+' — '+cw+'×'+chh+' px'+(key!=='colour'?', black→Low white→High':''));
+        renderEditor(); renderCueGrid();
+      };
+      img.src = rd.result;
+    };
+    rd.readAsDataURL(f);
+  });
   /* The name input lives in static HTML — one listener, resolved against the
      current selection, so renames can never leak into a previously edited cue. */
   document.getElementById('cueNameInput').addEventListener('input', function(){
-    var c = cueById(selectedCueId);
-    if(c){ c.name = this.value; renderCueGrid(); }
+    var c = editTarget();
+    if(c){ c.name = this.value; if(editingBlockId) renderTrackLanes(); else renderCueGrid(); }
   });
   function renderEditor(){
-    var cue = cueById(selectedCueId);
+    var cue = editTarget();
     if(!cue){
       document.getElementById('editorCueNo').textContent = '—';
       var nameInp = document.getElementById('cueNameInput');
@@ -1705,11 +2416,34 @@
       paramSectionsEl.innerHTML = '<p class="editor-empty">The show is empty. Click a ＋ tile in the cue grid to create a cue, or pick a Saved Cue preset and press Apply to Cue.</p>';
       return;
     }
-    document.getElementById('editorCueNo').textContent = pad(selectedCueId+1);
+    var isBlock = !!editingBlockId;
+    document.getElementById('editorCueNo').textContent = isBlock ? 'TL' : pad(selectedCueId+1);
     document.getElementById('cueNameInput').value = cue.name;
-    document.getElementById('editorCategory').textContent = cue.category;
-    document.getElementById('editorPlayback').textContent = PB_NAMES[cue.pb];
+    document.getElementById('editorCategory').textContent = isBlock ? 'Timeline' : cue.category;
+    document.getElementById('editorPlayback').textContent = isBlock ? '—' : PB_NAMES[cue.pb];
     document.getElementById('syncPhaseBtn').classList.toggle('on', !!cue.syncPhase);
+    /* scope: which fixtures + which parameters this cue touches when it runs */
+    var scopeEl = document.getElementById('editorScope');
+    if(isBlock){
+      scopeEl.innerHTML = '<span style="font-size:10px;color:var(--text-3);">scope &amp; filter come from its timeline track</span>';
+    } else {
+      if(!cue.filter) cue.filter = { motion:true, dimmer:true, colour:true };
+      scopeEl.innerHTML = '<select class="t-group" id="cueGroupSel" title="Which fixtures this cue drives when it runs">'+groupOptionsHtml(cue.groupId)+'</select>' +
+        '<div class="t-filter">'+[['motion','M','Motion'],['dimmer','D','Dimmer'],['colour','C','Colour']].map(function(k){
+          return '<button class="t-chip'+(cue.filter[k[0]]?' on':'')+'" data-cuefilter="'+k[0]+'" title="'+k[2]+' — off leaves that parameter to other sources">'+k[1]+'</button>';
+        }).join('')+'</div>';
+      document.getElementById('cueGroupSel').addEventListener('change', function(){
+        cue.groupId = this.value || null;
+        logLine('Cue '+cue.name+' → '+(this.value ? this.options[this.selectedIndex].text : 'all fixtures'));
+      });
+      Array.prototype.slice.call(scopeEl.querySelectorAll('[data-cuefilter]')).forEach(function(btn){
+        btn.addEventListener('click', function(){
+          var k = btn.getAttribute('data-cuefilter');
+          cue.filter[k] = !cue.filter[k];
+          btn.classList.toggle('on', cue.filter[k]);
+        });
+      });
+    }
     paramSectionsEl.innerHTML = renderParamTabs() + (
       activeParamTab==='motion' ? renderMotionOrDimmerSection('motion', cue.motion) :
       activeParamTab==='dimmer' ? renderMotionOrDimmerSection('dimmer', cue.dimmer) :
@@ -1720,14 +2454,21 @@
     if(activeParamTab==='motion' || activeParamTab==='dimmer'){
       var p = cue[activeParamTab];
       var src = (activeParamTab==='dimmer' && syncSrc) ? syncSrc : p;
-      drawWavePreview(document.getElementById('wave-'+activeParamTab), p.shape, p.low, p.high, activeParamTab==='motion'?'mm':'%');
+      if(p.shape==='bitmap'){
+        if(p.bitmap && p.bitmap.src) ensureBitmapCache(p.bitmap.src);
+        drawBitmapParamPreview(document.getElementById('bmprev-'+activeParamTab), p);
+      } else {
+        drawWavePreview(document.getElementById('wave-'+activeParamTab), p.shape, p.low, p.high, activeParamTab==='motion'?'mm':'%');
+      }
       drawMatricksPreview(document.getElementById('mtx-'+activeParamTab), src.mx, src.my, '#161618', activeParamTab==='dimmer'?'#e2a63d':'#ececea', distSpread(src));
     } else if(cue.colour.shape!=='bitmap'){
       var csrc = syncSrc || cue.colour;
       drawWavePreview(document.getElementById('wave-colour'), cue.colour.shape, 0, 100, '%');
       drawMatricksPreview(document.getElementById('mtx-colour'), csrc.mx, csrc.my, cue.colour.lowHex, cue.colour.highHex, distSpread(csrc));
     } else {
-      drawBitmapPlaceholder(document.getElementById('bitmapCanvas'));
+      if(cue.colour.bitmap && cue.colour.bitmap.src) ensureBitmapCache(cue.colour.bitmap.src);
+      drawBitmapPlaceholder(document.getElementById('bitmapCanvas'), cue.colour);
+      drawMatricksPreview(document.getElementById('mtx-colour'), cue.colour.mx, cue.colour.my, cue.colour.lowHex, cue.colour.highHex, distSpread(cue.colour));
     }
   }
 
@@ -1786,6 +2527,20 @@
         renderEditor(); renderViewportHud();
       });
     });
+    Array.prototype.slice.call(paramSectionsEl.querySelectorAll('[data-loadbitmap]')).forEach(function(btn){
+      btn.addEventListener('click', function(){
+        pendingBitmapKey = btn.getAttribute('data-loadbitmap');
+        document.getElementById('bitmapFileInp').click();
+      });
+    });
+    Array.prototype.slice.call(paramSectionsEl.querySelectorAll('input[data-bmf]')).forEach(function(inp){
+      inp.addEventListener('input', function(){
+        var pKey = inp.getAttribute('data-p'), f = inp.getAttribute('data-bmf');
+        var p = cue[pKey];
+        if(!p.bitmap) p.bitmap = { src:null, min:0, max:255 };
+        p.bitmap[f] = Math.max(0, Math.min(255, Math.round(+inp.value)||0));
+      });
+    });
     Array.prototype.slice.call(paramSectionsEl.querySelectorAll('[data-shuffle]')).forEach(function(btn){
       btn.addEventListener('click', function(){
         var p = cue[btn.getAttribute('data-p')];
@@ -1807,30 +2562,18 @@
       knob.addEventListener('pointerdown', function(e){ dragging=true; knob.setPointerCapture(e.pointerId); startY=e.clientY; startVal=+knob.getAttribute('data-val'); });
       knob.addEventListener('pointermove', function(e){
         if(!dragging) return;
-        var dv = (startY-e.clientY)*0.8;
-        var val = Math.max(0, Math.min(100, Math.round(startVal+dv)));
+        var isPhase = knob.getAttribute('data-f')==='phase';
+        var kMax = isPhase ? 360 : 100;
+        var dv = (startY-e.clientY)*(isPhase ? 2.88 : 0.8); /* same wrist travel for full range */
+        var val = Math.max(0, Math.min(kMax, Math.round(startVal+dv)));
         knob.setAttribute('data-val', val);
-        knob.querySelector('.tick').style.transform = 'rotate('+(val/100*270-135)+'deg)';
+        knob.querySelector('.tick').style.transform = 'rotate('+(val/kMax*270-135)+'deg)';
         var wrap = knob.closest ? knob.closest('.knob-wrap') : knob.parentElement;
-        if(wrap) wrap.querySelector('.knob-val').textContent = val+'%';
+        if(wrap) wrap.querySelector('.knob-val').textContent = val+(isPhase?'°':'%');
         cue[knob.getAttribute('data-p')][knob.getAttribute('data-f')] = val;
       });
       knob.addEventListener('pointerup', function(){ dragging=false; renderEditor(); renderViewportHud(); });
     });
-    Array.prototype.slice.call(paramSectionsEl.querySelectorAll('[data-samplemode]')).forEach(function(btn){ btn.addEventListener('click', function(){ cue.colour.sampleMode=btn.getAttribute('data-samplemode'); renderEditor(); }); });
-    Array.prototype.slice.call(paramSectionsEl.querySelectorAll('[data-contentmode]')).forEach(function(btn){ btn.addEventListener('click', function(){ cue.colour.contentMode=btn.getAttribute('data-contentmode'); renderEditor(); }); });
-    var overlay = document.getElementById('bitmapOverlay');
-    if(overlay){
-      var dragging=false, sx, sy, sl, st;
-      overlay.addEventListener('pointerdown', function(e){ dragging=true; overlay.setPointerCapture(e.pointerId); sx=e.clientX; sy=e.clientY; sl=parseFloat(overlay.style.left); st=parseFloat(overlay.style.top); });
-      overlay.addEventListener('pointermove', function(e){
-        if(!dragging) return;
-        var wrap = overlay.parentElement.getBoundingClientRect();
-        overlay.style.left = Math.max(0,Math.min(90, sl+(e.clientX-sx)/wrap.width*100))+'%';
-        overlay.style.top = Math.max(0,Math.min(90, st+(e.clientY-sy)/wrap.height*100))+'%';
-      });
-      overlay.addEventListener('pointerup', function(){ dragging=false; });
-    }
   }
 
 
@@ -1846,19 +2589,30 @@
     requestAnimationFrame(editorAnimLoop);
     if(ts - lastEditorAnim < 33) return;
     lastEditorAnim = ts;
-    var c = cueById(selectedCueId);
+    var c = editTarget();
     if(!c) return;
+    /* bitmap params: keep the preview live so video sources visibly move */
+    if(activeParamTab!=='colour' && c[activeParamTab] && c[activeParamTab].shape==='bitmap'){
+      var bcv = document.getElementById('bmprev-'+activeParamTab);
+      if(bcv && bcv.clientWidth) drawBitmapParamPreview(bcv, c[activeParamTab]);
+      return;
+    }
+    if(activeParamTab==='colour' && c.colour.shape==='bitmap'){
+      var ccv = document.getElementById('bitmapCanvas');
+      if(ccv) drawBitmapPlaceholder(ccv, c.colour);
+      return;
+    }
     var waveCv = document.getElementById('wave-'+activeParamTab);
-    if(!waveCv || !waveCv.clientWidth) return; /* editor hidden, or bitmap view */
+    if(!waveCv || !waveCv.clientWidth) return; /* editor hidden */
     if(activeParamTab==='motion' || activeParamTab==='dimmer'){
       var p = c[activeParamTab];
       var src = (activeParamTab==='dimmer' && c.syncPhase) ? c.motion : p;
-      var frac = showClock*(src.rate/100)*WAVE_FREQ + src.phase/100;
+      var frac = showClock*(src.rate/100)*WAVE_FREQ + src.phase/360;
       drawWavePreview(waveCv, p.shape, p.low, p.high, activeParamTab==='motion'?'mm':'%', frac);
       drawMatricksPreview(document.getElementById('mtx-'+activeParamTab), src.mx, src.my, '#161618', activeParamTab==='dimmer'?'#e2a63d':'#ececea', distSpread(src), p.shape, frac);
     } else if(c.colour.shape!=='bitmap'){
       var csrc = c.syncPhase ? c.motion : c.colour;
-      var cfrac = c.syncPhase ? showClock*(c.motion.rate/100)*WAVE_FREQ + c.motion.phase/100 : showClock*0.3;
+      var cfrac = c.syncPhase ? showClock*(c.motion.rate/100)*WAVE_FREQ + c.motion.phase/360 : showClock*0.3;
       drawWavePreview(waveCv, c.colour.shape, 0, 100, '%', cfrac);
       drawMatricksPreview(document.getElementById('mtx-colour'), csrc.mx, csrc.my, c.colour.lowHex, c.colour.highHex, distSpread(csrc), c.colour.shape, cfrac);
     }
@@ -1885,9 +2639,14 @@
      246–250 band held 5 s factory-resets the winch, so it is never driven. */
   var DMX_MODES = { '5':5, '6':6, '9':9, '10':10 };
   var WINCH_MODELS = [
-    { id:'m1', name:'BLK RISE', maxSpeedCmS:75, maxLoadKg:1.2, lift:'3.3 / 6 m', dmxMode:'6' }
+    { id:'m1', name:'BLK RISE', maxSpeedCmS:75, maxLoadKg:1.2, liftM:6, dmxMode:'6', speedCalPct:100 }
   ];
   function modelFootprint(m){ return DMX_MODES[(m && m.dmxMode) || '6'] || 6; }
+  /* Real cable length for DMX 0→255, per model (RISE: 3.3 m or 6 m variant).
+     Every DMX↔metres conversion — patch limits, Test height, cue mm mapping,
+     slew physics, calibration — derives from this one number. */
+  function modelLiftM(m){ return (m && +m.liftM>0) ? +m.liftM : 6; }
+  function dmxToM(dmx, m){ return (dmx/255)*modelLiftM(m); }
   /* The two RISE addons. sizeCm is the real physical dimension — sphere
      diameter (150–350 mm range) or tube length. The 3D view renders it at
      true world scale, so zooming reads as distance, not resizing. */
@@ -1914,7 +2673,8 @@
         '<div class="lib-fields">' +
           '<div class="lib-field"><label>Max speed</label><div class="lib-inp"><input type="number" data-model-field="maxSpeedCmS" data-idx="'+idx+'" value="'+m.maxSpeedCmS+'"><span>cm/s</span></div></div>' +
           '<div class="lib-field"><label>Max load</label><div class="lib-inp"><input type="number" step="0.1" data-model-field="maxLoadKg" data-idx="'+idx+'" value="'+m.maxLoadKg+'"><span>kg</span></div></div>' +
-          '<div class="lib-field"><label>Lift height</label><div class="lib-inp"><input data-model-field="lift" data-idx="'+idx+'" value="'+m.lift+'"></div></div>' +
+          '<div class="lib-field"><label>Lift height</label><div class="lib-inp"><input type="number" step="0.1" min="0.5" max="30" data-model-field="liftM" data-idx="'+idx+'" value="'+modelLiftM(m)+'" title="Real cable length for DMX 0→255 — RISE variants: 3.3 or 6 m. Drives every DMX↔metres conversion."><span>m</span></div></div>' +
+          '<div class="lib-field"><label>Speed cal</label><div class="lib-inp"><input type="number" min="20" max="300" data-model-field="speedCalPct" data-idx="'+idx+'" value="'+(m.speedCalPct||100)+'" title="Real-world speed vs rated, measured via Calibrate Motor in Patch — scales the visualiser for every fixture of this model"><span>%</span></div></div>' +
           '<div class="lib-field"><label>DMX mode</label><select data-model-field="dmxMode" data-idx="'+idx+'" title="Must match the DMX Mode set on the fixture LCD menu">' +
             [['5','5CH — Motor·Speed·RGB'],['6','6CH — +Fine16'],['9','9CH — +Dimmer·Strobe'],['10','10CH — full']].map(function(md){
               return '<option value="'+md[0]+'"'+(((m.dmxMode||'6')===md[0])?' selected':'')+'>'+md[1]+'</option>';
@@ -1927,10 +2687,12 @@
     Array.prototype.slice.call(el.querySelectorAll('[data-model-field]')).forEach(function(inp){
       inp.addEventListener('change', function(){
         var idx = +inp.getAttribute('data-idx'), field = inp.getAttribute('data-model-field');
-        WINCH_MODELS[idx][field] = (field==='name'||field==='lift'||field==='dmxMode') ? inp.value : Math.max(field==='maxLoadKg'?0.1:1, +inp.value);
+        WINCH_MODELS[idx][field] = (field==='name'||field==='dmxMode') ? inp.value : Math.max(field==='maxLoadKg'?0.1:1, +inp.value);
+        if(field==='speedCalPct') WINCH_MODELS[idx][field] = Math.max(20, Math.min(300, Math.round(+inp.value)||100));
+        if(field==='liftM') WINCH_MODELS[idx][field] = Math.max(0.5, Math.min(30, +inp.value||6));
         logLine('Model '+WINCH_MODELS[idx].name+' — '+field+' updated'+(field==='dmxMode'?' ('+modelFootprint(WINCH_MODELS[idx])+'-channel footprint — re-patch addresses if spacing changed)':''));
         if(field==='dmxMode') renderModelsTable();
-        renderPatchRows(); renderViewportHud();
+        renderPatchRows(); renderViewportHud(); renderZoneInfo();
       });
     });
   }
@@ -1973,7 +2735,7 @@
     renderFittingsTable(); renderPatchRows();
   }
   document.getElementById('addModelBtn').addEventListener('click', function(){
-    WINCH_MODELS.push({ id:'m'+Date.now(), name:'New Model', maxSpeedCmS:DEFAULT_SPEED_CMS, maxLoadKg:1.2, lift:'—', dmxMode:'6' });
+    WINCH_MODELS.push({ id:'m'+Date.now(), name:'New Model', maxSpeedCmS:DEFAULT_SPEED_CMS, maxLoadKg:1.2, liftM:6, dmxMode:'6', speedCalPct:100 });
     renderModelsTable();
   });
   document.getElementById('addFittingBtn').addEventListener('click', function(){
@@ -2060,6 +2822,154 @@
        Layout view becomes visible and gets a real canvas size */
     window.addEventListener('resize', drawLayoutPlan);
     drawLayoutPlan();
+  }
+
+  /* ==========================================================================
+     GROUPS PAGE — the layout plan as a selection surface. Click toggles a
+     fixture, drag draws a marquee; Save stores the picked set as a named
+     group for cues and timeline tracks to scope to.
+     ========================================================================== */
+  var groupDraft = {};
+  var groupsGeom = null;
+  var groupMarquee = null;
+  function drawGroupsPlan(){
+    var cv = document.getElementById('groupsPlan');
+    if(!cv) return;
+    var dpr = Math.min(window.devicePixelRatio||1,2);
+    var w = cv.clientWidth||520, h = cv.clientHeight||320;
+    cv.width=w*dpr; cv.height=h*dpr;
+    var ctx = cv.getContext('2d'); ctx.setTransform(dpr,0,0,dpr,0,0);
+    ctx.clearRect(0,0,w,h);
+    var count = winchData.length;
+    var cnt = document.getElementById('groupSelCount');
+    if(cnt) cnt.textContent = Object.keys(groupDraft).length+' selected';
+    if(!count){
+      ctx.fillStyle='rgba(156,156,152,.8)'; ctx.font='11px ui-monospace,monospace';
+      ctx.fillText('No fixtures patched — add them in the Patch view', 20, 34);
+      groupsGeom = null;
+      return;
+    }
+    var cols = Math.max(1, layout.cols|0);
+    var rows = Math.max(1, Math.ceil(count/cols));
+    var rigD = (rows-1)*layout.pitchZ, spanW = (cols-1)*layout.pitchX;
+    var pad = 40;
+    var scale = Math.min((w-pad*2)/Math.max(spanW,0.001), (h-pad*2)/Math.max(rigD,0.001));
+    if(!isFinite(scale) || scale<=0) scale = 40;
+    scale = Math.min(scale, 90);
+    var ox = (w-spanW*scale)/2, oy = (h-rigD*scale)/2;
+    groupsGeom = { ox:ox, oy:oy, scale:scale, cols:cols, rows:rows, count:count };
+    ctx.strokeStyle='rgba(255,255,255,.12)';
+    ctx.strokeRect(ox-16, oy-16, spanW*scale+32, rigD*scale+32);
+    ctx.fillStyle='rgba(156,156,152,.9)'; ctx.font='9.5px ui-monospace,monospace';
+    ctx.fillText('front of stage', ox+spanW*scale/2-30, oy+rigD*scale+28);
+    for(var n=0;n<count;n++){
+      var c = n%cols, r = Math.floor(n/cols);
+      var x = ox + (cols>1 ? c*layout.pitchX*scale : 0);
+      var y = oy + (rows>1 ? r*layout.pitchZ*scale : 0);
+      var wch = winchData[n];
+      var sel = !!groupDraft[wch.id];
+      ctx.beginPath(); ctx.arc(x, y, sel?5:3.4, 0, Math.PI*2);
+      ctx.fillStyle = sel ? '#5590d9' : 'rgba(196,196,190,.6)';
+      ctx.fill();
+      if(sel){ ctx.strokeStyle='rgba(85,144,217,.5)'; ctx.beginPath(); ctx.arc(x,y,7,0,Math.PI*2); ctx.stroke(); }
+    }
+    if(groupMarquee){
+      ctx.strokeStyle='rgba(85,144,217,.8)'; ctx.setLineDash([4,3]);
+      ctx.strokeRect(Math.min(groupMarquee.x0,groupMarquee.x1), Math.min(groupMarquee.y0,groupMarquee.y1),
+                     Math.abs(groupMarquee.x1-groupMarquee.x0), Math.abs(groupMarquee.y1-groupMarquee.y0));
+      ctx.setLineDash([]);
+    }
+  }
+  function groupsFixtureXY(n){
+    var g = groupsGeom;
+    var c = n%g.cols, r = Math.floor(n/g.cols);
+    return { x: g.ox + (g.cols>1 ? c*layout.pitchX*g.scale : 0), y: g.oy + (g.rows>1 ? r*layout.pitchZ*g.scale : 0) };
+  }
+  function renderGroupList(){
+    var el = document.getElementById('groupList');
+    if(!el) return;
+    if(!groups.length){ el.innerHTML = '<p class="lib-note">No groups yet — pick fixtures on the plan and press Save Group.</p>'; return; }
+    el.innerHTML = groups.map(function(g, gi){
+      return '<div class="group-row" data-group="'+g.id+'"><b>'+g.name+'</b><span>'+g.ids.length+' fixtures</span>' +
+        '<button class="rm-btn" data-delgroup="'+g.id+'" title="Delete group">'+RM_ICON+'</button></div>';
+    }).join('');
+    Array.prototype.slice.call(el.querySelectorAll('.group-row')).forEach(function(row){
+      row.addEventListener('click', function(e){
+        if(e.target.closest && e.target.closest('[data-delgroup]')) return;
+        var g = groupById(row.getAttribute('data-group'));
+        if(!g) return;
+        groupDraft = {};
+        g.ids.forEach(function(id){ groupDraft[id] = true; });
+        document.getElementById('groupNameInp').value = g.name;
+        drawGroupsPlan();
+      });
+    });
+    Array.prototype.slice.call(el.querySelectorAll('[data-delgroup]')).forEach(function(btn){
+      btn.addEventListener('click', function(e){
+        e.stopPropagation();
+        var gid = btn.getAttribute('data-delgroup');
+        var g = groupById(gid);
+        groups = groups.filter(function(x){ return x.id!==gid; });
+        /* scoped cues/tracks fall back to All via groupHas() */
+        logLine('Group deleted: '+(g?g.name:gid)+' — anything scoped to it now targets all fixtures','warn');
+        renderGroupList(); renderTrackHeaders(); renderEditor();
+      });
+    });
+  }
+  function wireGroupsPage(){
+    var cv = document.getElementById('groupsPlan');
+    var down = null, moved = false;
+    cv.addEventListener('pointerdown', function(e){
+      var rect = cv.getBoundingClientRect();
+      down = { x:e.clientX-rect.left, y:e.clientY-rect.top };
+      moved = false;
+      cv.setPointerCapture(e.pointerId);
+    });
+    cv.addEventListener('pointermove', function(e){
+      if(!down) return;
+      var rect = cv.getBoundingClientRect();
+      var x = e.clientX-rect.left, y = e.clientY-rect.top;
+      if(Math.abs(x-down.x)>4 || Math.abs(y-down.y)>4) moved = true;
+      if(moved){ groupMarquee = { x0:down.x, y0:down.y, x1:x, y1:y }; drawGroupsPlan(); }
+    });
+    cv.addEventListener('pointerup', function(e){
+      if(!down || !groupsGeom){ down=null; groupMarquee=null; return; }
+      var rect = cv.getBoundingClientRect();
+      var x = e.clientX-rect.left, y = e.clientY-rect.top;
+      if(moved){
+        var x0=Math.min(down.x,x), x1=Math.max(down.x,x), y0=Math.min(down.y,y), y1=Math.max(down.y,y);
+        for(var n=0;n<groupsGeom.count;n++){
+          var pxy = groupsFixtureXY(n);
+          if(pxy.x>=x0-6 && pxy.x<=x1+6 && pxy.y>=y0-6 && pxy.y<=y1+6) groupDraft[winchData[n].id] = true;
+        }
+      } else {
+        var best=null, bestD=Infinity;
+        for(var n2=0;n2<groupsGeom.count;n2++){
+          var p2 = groupsFixtureXY(n2);
+          var d2 = (p2.x-x)*(p2.x-x)+(p2.y-y)*(p2.y-y);
+          if(d2<bestD){ bestD=d2; best=n2; }
+        }
+        if(best!==null && bestD < 20*20){
+          var wid = winchData[best].id;
+          if(groupDraft[wid]) delete groupDraft[wid]; else groupDraft[wid] = true;
+        }
+      }
+      down = null; groupMarquee = null;
+      drawGroupsPlan();
+    });
+    document.getElementById('groupClearBtn').addEventListener('click', function(){ groupDraft = {}; drawGroupsPlan(); });
+    document.getElementById('groupSaveBtn').addEventListener('click', function(){
+      var ids = Object.keys(groupDraft).map(Number);
+      if(!ids.length){ logLine('Pick some fixtures on the plan first','warn'); return; }
+      var name = (document.getElementById('groupNameInp').value || '').trim() || ('Group '+(groups.length+1));
+      var existing = groups.find(function(g){ return g.name===name; });
+      if(existing){ existing.ids = ids; logLine('Group updated: '+name+' ('+ids.length+' fixtures)'); }
+      else { groups.push({ id:'g'+Date.now(), name:name, ids:ids }); logLine('Group saved: '+name+' ('+ids.length+' fixtures)'); }
+      renderGroupList(); renderTrackHeaders(); renderEditor();
+    });
+    window.addEventListener('resize', drawGroupsPlan);
+    renderGroupList();
+    drawGroupsPlan();
   }
 
   /* ==========================================================================
@@ -2151,8 +3061,9 @@
     document.getElementById('viewportTag').textContent = (!winchData.length ? 'No fixtures patched'
       : winchData.length+' fixture'+(winchData.length>1?'s':'')+' — '+(
         activeAnim.parked ? 'Parked — all stop'
-        : !animCue ? 'Idle — rig at 0'
-        : (activeAnim.playing?'Live':'Preview')+' — '+animCue.name));
+        : (activeAnim.playing && animCue) ? 'Live — '+animCue.name
+        : showMode==='timeline' ? 'Timeline'
+        : 'Idle — rig at 0'));
     var os = computeOverspeed();
     var speedIndicator = document.getElementById('speedIndicator'), speedStatus = document.getElementById('speedStatus');
     if(speedIndicator && speedStatus){
@@ -2175,33 +3086,82 @@
   /* ==========================================================================
      TIMELINE
      ========================================================================== */
-  var TRACKS = [ {id:'t1',name:'Main Rig',mute:false,solo:false}, {id:'t2',name:'Side Wings',mute:false,solo:false}, {id:'t3',name:'Ambient Wash',mute:false,solo:false} ];
+  /* Each track carries a fixture-group scope and an M/D/C parameter filter:
+     while the timeline plays, its active block drives ONLY those params on
+     ONLY those fixtures — everything else keeps its current source. */
+  function newTrack(name){ return { id:'t'+Date.now()+Math.floor(Math.random()*1000), name:name, mute:false, solo:false, groupId:null, filter:{ motion:true, dimmer:true, colour:true } }; }
+  var TRACKS = [ { id:'t1', name:'Track 1', mute:false, solo:false, groupId:null, filter:{ motion:true, dimmer:true, colour:true } } ];
   /* blank show: the timeline starts empty — drag cue tiles onto a lane */
   var blocks = [];
   var pxPerSecond=70, timelineTotal=32, selectedBlockId=null, tlPlaying=false, tlElapsed=0, tlLastTs=null;
+  var tlClipboard = null;
+  var TL_FPS = 25; /* timecode frame rate — matches the DMX output clock */
+  var tlLoop = true; /* at the end: loop from 0, or stop-and-reset (Once) */
   var trackHeadersEl=document.getElementById('trackHeaders'), trackLanesEl=document.getElementById('trackLanes'), rulerEl=document.getElementById('ruler');
 
   function renderTrackHeaders(){
     trackHeadersEl.innerHTML = TRACKS.map(function(t){
-      return '<div class="track-header"><div class="t-name">'+t.name+'</div><div class="t-btns"><button class="t-mini-btn'+(t.mute?' on':'')+'" data-track="'+t.id+'" data-act="mute">M</button><button class="t-mini-btn'+(t.solo?' on':'')+'" data-track="'+t.id+'" data-act="solo">S</button></div></div>';
-    }).join('');
+      var f = t.filter || (t.filter = { motion:true, dimmer:true, colour:true });
+      return '<div class="track-header">' +
+        '<div style="display:flex; align-items:center; gap:5px;"><div class="t-name">'+t.name+'</div><div class="t-btns"><button class="t-mini-btn'+(t.mute?' on':'')+'" data-track="'+t.id+'" data-act="mute">M</button><button class="t-mini-btn'+(t.solo?' on':'')+'" data-track="'+t.id+'" data-act="solo">S</button></div></div>' +
+        '<div style="display:flex; align-items:center; gap:5px;">' +
+          '<select class="t-group" data-trackgroup="'+t.id+'" title="Which fixtures this track drives">'+groupOptionsHtml(t.groupId)+'</select>' +
+          '<div class="t-filter">'+[['motion','M','Motion'],['dimmer','D','Dimmer'],['colour','C','Colour']].map(function(k){
+            return '<button class="t-chip'+(f[k[0]]?' on':'')+'" data-trackfilter="'+t.id+'" data-fkey="'+k[0]+'" title="'+k[2]+' — off leaves that parameter to other sources">'+k[1]+'</button>';
+          }).join('')+'</div>' +
+        '</div>' +
+      '</div>';
+    }).join('') + '<button class="flat-btn" id="addTrackBtn" style="margin:8px 10px;">＋ Track</button>';
     Array.prototype.slice.call(trackHeadersEl.querySelectorAll('.t-mini-btn')).forEach(function(btn){
       btn.addEventListener('click', function(){ var t=TRACKS.find(function(x){return x.id===btn.getAttribute('data-track');}); t[btn.getAttribute('data-act')]=!t[btn.getAttribute('data-act')]; renderTrackHeaders(); });
+    });
+    Array.prototype.slice.call(trackHeadersEl.querySelectorAll('[data-trackgroup]')).forEach(function(sel){
+      sel.addEventListener('change', function(){
+        var t = TRACKS.find(function(x){ return x.id===sel.getAttribute('data-trackgroup'); });
+        if(t){ t.groupId = sel.value || null; logLine('Track '+t.name+' → '+(sel.value ? sel.options[sel.selectedIndex].text : 'all fixtures')); }
+      });
+    });
+    Array.prototype.slice.call(trackHeadersEl.querySelectorAll('[data-trackfilter]')).forEach(function(btn){
+      btn.addEventListener('click', function(){
+        var t = TRACKS.find(function(x){ return x.id===btn.getAttribute('data-trackfilter'); });
+        if(!t) return;
+        var k = btn.getAttribute('data-fkey');
+        t.filter[k] = !t.filter[k];
+        renderTrackHeaders();
+      });
+    });
+    var addBtn = document.getElementById('addTrackBtn');
+    if(addBtn) addBtn.addEventListener('click', function(){
+      TRACKS.push(newTrack('Track '+(TRACKS.length+1)));
+      renderTrackHeaders(); renderTrackLanes();
     });
   }
   function renderRuler(){
     rulerEl.style.width=(timelineTotal*pxPerSecond)+'px';
-    var html=''; for(var s=0;s<=timelineTotal;s+=4){ html+='<div class="ruler-tick" style="left:'+(s*pxPerSecond)+'px;">'+s+'s</div>'; }
+    var tickStep = timelineTotal>240 ? 30 : timelineTotal>120 ? 10 : 4;
+    var html='';
+    for(var sec=0;sec<=timelineTotal;sec+=tickStep){
+      var lbl = sec<60 ? sec+'s' : Math.floor(sec/60)+':'+pad(Math.round(sec%60));
+      html+='<div class="ruler-tick" style="left:'+(sec*pxPerSecond)+'px;">'+lbl+'</div>';
+    }
+    if(tlBpm>0){
+      var beat = 60/tlBpm;
+      for(var bn=0; bn*beat<=timelineTotal; bn++){
+        var bx = bn*beat*pxPerSecond;
+        html += '<div class="'+(bn%4===0?'bar-tick':'beat-tick')+'" style="left:'+bx+'px;"'+(bn%4===0?' title="bar '+(bn/4+1)+'"':'')+'></div>';
+      }
+    }
     rulerEl.innerHTML = html;
   }
   function renderTrackLanes(){
     trackLanesEl.style.width=(timelineTotal*pxPerSecond)+'px';
     trackLanesEl.innerHTML = TRACKS.map(function(t){
       var laneBlocks = blocks.filter(function(b){return b.trackId===t.id;}).map(function(b){
-        var cue = cueById(b.cueId); if(!cue) return '';
-        return '<div class="cue-block'+(b.id===selectedBlockId?' selected':'')+'" data-block="'+b.id+'" style="left:'+(b.start*pxPerSecond)+'px;width:'+(b.dur*pxPerSecond)+'px;"><div class="cb-swatch" style="background:'+cueSwatch(cue)+'"></div><div class="cb-body">'+cue.name+'</div><div class="resize-handle" data-resize="'+b.id+'"></div></div>';
+        var cue = b.custom || cueById(b.cueId); if(!cue) return '';
+        return '<div class="cue-block'+(b.id===selectedBlockId?' selected':'')+(b.preset?' preset':'')+'" data-block="'+b.id+'" title="'+(b.preset?'Pre-set container — motors to start positions, dark. Right-click to toggle.':'Right-click toggles pre-set mode')+'" style="left:'+(b.start*pxPerSecond)+'px;width:'+(b.dur*pxPerSecond)+'px;"><div class="cb-swatch" style="background:'+cueSwatch(cue)+'"></div><div class="cb-body">'+(b.preset?'⇤ ':'')+(cue.name||'Custom')+(b.custom&&!b.preset?' •':'')+'</div><div class="resize-handle" data-resize="'+b.id+'"></div></div>';
       }).join('');
-      return '<div class="track-lane" data-track="'+t.id+'">'+laneBlocks+'<div class="tl-playhead" style="left:'+(tlElapsed*pxPerSecond)+'px;"></div></div>';
+      var beatBg = tlBpm>0 ? ' style="background-image:repeating-linear-gradient(90deg, rgba(255,255,255,.045) 0 1px, transparent 1px '+((60/tlBpm)*pxPerSecond)+'px)"' : '';
+      return '<div class="track-lane" data-track="'+t.id+'"'+beatBg+'>'+laneBlocks+'<div class="tl-playhead" style="left:'+(tlElapsed*pxPerSecond)+'px;"></div></div>';
     }).join('');
     wireTrackLaneEvents();
   }
@@ -2214,13 +3174,66 @@
         var cueId = +e.dataTransfer.getData('text/plain'), cue = cueById(cueId);
         if(!cue) return;
         var rect = lane.getBoundingClientRect();
-        var startSec = Math.round(Math.max(0,(e.clientX-rect.left)/pxPerSecond)*4)/4;
+        var startSec = snapT(Math.max(0,(e.clientX-rect.left)/pxPerSecond));
         blocks.push({ id:'b'+Date.now(), trackId:lane.getAttribute('data-track'), cueId:cueId, start:startSec, dur:cue.dur });
         renderTrackLanes();
       });
+      /* double-click: a CUSTOM cue container — not in the cue grid, not
+         saved anywhere unless you press Save Preset in the editor.
+         Shift+double-click makes a pre-set (mark) container. Right-click
+         opens the timeline menu. */
+      lane.addEventListener('dblclick', function(e){
+        if(e.target.closest && e.target.closest('.cue-block')) return;
+        var rect = lane.getBoundingClientRect();
+        createTlBlock(lane.getAttribute('data-track'), snapT(Math.max(0,(e.clientX-rect.left)/pxPerSecond)), e.shiftKey);
+      });
+      lane.addEventListener('contextmenu', function(e){
+        if(e.target.closest && e.target.closest('.cue-block')) return;
+        e.preventDefault();
+        var rect = lane.getBoundingClientRect();
+        var atSec = snapT(Math.max(0,(e.clientX-rect.left)/pxPerSecond));
+        var trackId = lane.getAttribute('data-track');
+        openTlMenu(e.clientX, e.clientY, [
+          { label:'New cue block here', fn:function(){ createTlBlock(trackId, atSec, false); } },
+          { label:'New pre-set (mark) container here', fn:function(){ createTlBlock(trackId, atSec, true); } },
+          { sep:true },
+          { label:'Paste at playhead', disabled:!tlClipboard, fn:tlPasteAtPlayhead }
+        ]);
+      });
     });
     Array.prototype.slice.call(trackLanesEl.querySelectorAll('.cue-block')).forEach(function(el){
-      el.addEventListener('click', function(e){ e.stopPropagation(); selectedBlockId = el.getAttribute('data-block'); renderTrackLanes(); });
+      el.addEventListener('contextmenu', function(e){
+        e.preventDefault(); e.stopPropagation();
+        var bp = blocks.find(function(x){ return x.id===el.getAttribute('data-block'); });
+        if(!bp) return;
+        selectedBlockId = bp.id;
+        renderTrackLanes();
+        openTlMenu(e.clientX, e.clientY, [
+          { label: bp.preset ? 'Make normal cue block' : 'Make pre-set (mark) — motors to start, dark', fn:function(){
+              bp.preset = !bp.preset;
+              logLine(bp.preset ? 'Block → PRE-SET container: motors to the cue\'s start positions, dark' : 'Block → normal cue block');
+              renderTrackLanes();
+            } },
+          { sep:true },
+          { label:'Copy', fn:function(){ tlClipboard = deepCopy(bp); logLine('Block copied — paste with Cmd/Ctrl+V or the menu'); } },
+          { label:'Paste at playhead', disabled:!tlClipboard, fn:tlPasteAtPlayhead },
+          { label:'Duplicate after', fn:function(){
+              var nb = deepCopy(bp); nb.id = 'b'+Date.now(); nb.start = bp.start + bp.dur;
+              blocks.push(nb); selectedBlockId = nb.id;
+              renderTrackLanes();
+            } },
+          { sep:true },
+          { label:'Delete', fn:function(){ tlDeleteBlock(bp.id); } }
+        ]);
+      });
+      el.addEventListener('click', function(e){
+        e.stopPropagation();
+        selectedBlockId = el.getAttribute('data-block');
+        var b = blocks.find(function(x){ return x.id===selectedBlockId; });
+        if(b && b.custom){ editingBlockId = b.id; }
+        else if(b){ editingBlockId = null; selectedCueId = b.cueId; renderCueGrid(); }
+        renderTrackLanes(); renderEditor();
+      });
       var moving=false, msx, mos, bref;
       el.addEventListener('pointerdown', function(e){
         if(e.target.hasAttribute('data-resize')) return;
@@ -2228,45 +3241,292 @@
         bref = blocks.find(function(b){return b.id===el.getAttribute('data-block');}); mos=bref.start;
         el.classList.add('dragging');
       });
-      el.addEventListener('pointermove', function(e){ if(!moving) return; bref.start=Math.max(0,Math.round((mos+(e.clientX-msx)/pxPerSecond)*4)/4); el.style.left=(bref.start*pxPerSecond)+'px'; });
+      el.addEventListener('pointermove', function(e){ if(!moving) return; bref.start=snapT(mos+(e.clientX-msx)/pxPerSecond); el.style.left=(bref.start*pxPerSecond)+'px'; });
       el.addEventListener('pointerup', function(){ moving=false; el.classList.remove('dragging'); });
       var handle = el.querySelector('[data-resize]'), resizing=false, rsx, rod, rref;
       if(handle){
         handle.addEventListener('pointerdown', function(e){ e.stopPropagation(); resizing=true; handle.setPointerCapture(e.pointerId); rsx=e.clientX; rref=blocks.find(function(b){return b.id===el.getAttribute('data-block');}); rod=rref.dur; });
-        handle.addEventListener('pointermove', function(e){ if(!resizing) return; rref.dur=Math.max(0.5, Math.round((rod+(e.clientX-rsx)/pxPerSecond)*4)/4); el.style.width=(rref.dur*pxPerSecond)+'px'; });
+        handle.addEventListener('pointermove', function(e){ if(!resizing) return; rref.dur=Math.max(0.5, snapT(rod+(e.clientX-rsx)/pxPerSecond)); el.style.width=(rref.dur*pxPerSecond)+'px'; });
         handle.addEventListener('pointerup', function(){ resizing=false; });
       }
     });
   }
-  function fmtTlTime(s){ var m=Math.floor(s/60), r=s%60; return pad(m)+':'+r.toFixed(1).padStart(4,'0'); }
+  function fmtTlTime(s){ return fmtTimecode(s); }
   document.getElementById('tlTimeTotal').textContent = fmtTlTime(timelineTotal);
   function tlTick(ts){
     if(!tlPlaying) return;
     if(tlLastTs===null) tlLastTs=ts;
     var dt=(ts-tlLastTs)/1000; tlLastTs=ts;
-    tlElapsed += dt; if(tlElapsed>=timelineTotal) tlElapsed=0;
-    document.getElementById('tlTimeNow').textContent = fmtTlTime(tlElapsed);
-    Array.prototype.slice.call(trackLanesEl.querySelectorAll('.tl-playhead')).forEach(function(ph){ ph.style.left=(tlElapsed*pxPerSecond)+'px'; });
+    tlElapsed += dt;
+    if(tlElapsed>=timelineTotal){
+      if(tlLoop){
+        tlElapsed = 0;
+        if(tlAudioEl){ try{ tlAudioEl.currentTime = 0; }catch(_e){} }
+      } else {
+        tlStopFn(); /* Once: stop and reset at the end */
+        logLine('Timeline reached the end — stopped (Once mode)');
+        return;
+      }
+    }
+    tlAudioSync(true);
+    updatePlayhead();
     requestAnimationFrame(tlTick);
   }
   var tlPlayIconEl = document.getElementById('tlPlayIcon');
+  /* why-is-the-timeline-silent checks, logged when Play is pressed */
+  function timelineDiagnosis(){
+    if(activeAnim.parked){ logLine('Timeline check: E-STOP is latched — everything is forced to rest until you press Reset E-Stop','warn'); }
+    if(!winchData.length){ logLine('Timeline check: no fixtures patched — nothing can output','warn'); return; }
+    if(!blocks.length){ logLine('Timeline check: the timeline has NO blocks — double-click a lane to create one','warn'); return; }
+    var anySolo = TRACKS.some(function(t){ return t.solo; });
+    TRACKS.forEach(function(tr){
+      var tb = blocks.filter(function(b){ return b.trackId===tr.id; });
+      if(!tb.length) return;
+      if(tr.mute){ logLine('Timeline check: track '+tr.name+' is MUTED — its '+tb.length+' block'+(tb.length>1?'s are':' is')+' silent','warn'); return; }
+      if(anySolo && !tr.solo){ logLine('Timeline check: another track is SOLO — '+tr.name+' is silent','warn'); return; }
+      var f = tr.filter;
+      if(f && !f.motion && !f.dimmer && !f.colour) logLine('Timeline check: track '+tr.name+' has ALL filters (M/D/C) off — it drives nothing','warn');
+      if(tr.groupId){
+        var g = groupById(tr.groupId);
+        if(!g) logLine('Timeline check: track '+tr.name+' — its group was deleted, now drives all fixtures','warn');
+        else if(!winchData.some(function(w){ return g.ids.indexOf(w.id)>=0; })) logLine('Timeline check: track '+tr.name+' group "'+g.name+'" matches 0 patched fixtures — NO output','warn');
+      }
+      tb.forEach(function(b){
+        if(!b.custom && !cueById(b.cueId)) logLine('Timeline check: a block on '+tr.name+' references a deleted cue — it is skipped','warn');
+        var bc = b.custom || cueById(b.cueId);
+        if(bc && bc.motion && bc.motion.rate===0 && bc.motion.low!==bc.motion.high) logLine('Timeline check: block "'+(bc.name||'')+'" has motion Rate 0 — it will HOLD the wave start ('+bc.motion.low+' mm) and never move','warn');
+      });
+    });
+    var firstStart = Math.min.apply(null, blocks.map(function(b){ return b.start; }));
+    if(firstStart - tlElapsed > 2) logLine('Timeline check: first block starts at '+firstStart.toFixed(1)+' s — nothing plays until the playhead reaches it');
+  }
   document.getElementById('tlPlay').addEventListener('click', function(){
     tlPlaying=!tlPlaying; tlLastTs=null; this.classList.toggle('active',tlPlaying);
     tlPlayIconEl.innerHTML = tlPlaying ? '<rect x="0" y="0" width="3" height="9"/><rect x="5" y="0" width="3" height="9"/>' : '<path d="M0 0l9 4.5L0 9z"/>';
-    if(tlPlaying) requestAnimationFrame(tlTick);
+    tlAudioSync(tlPlaying);
+    if(tlPlaying){ timelineDiagnosis(); requestAnimationFrame(tlTick); }
   });
-  document.getElementById('tlStop').addEventListener('click', function(){
+  function createTlBlock(trackId, startSec, isPre){
+    var src = cueById(selectedCueId);
+    var custom;
+    if(src){
+      custom = { name:src.name+(isPre?' PRE':' •'), motion:deepCopy(src.motion), dimmer:deepCopy(src.dimmer), colour:deepCopy(src.colour), syncPhase:!!src.syncPhase };
+    } else {
+      var col = defaultParam('sine', 0, 1); col.lowHex='#e2a63d'; col.highHex='#ececea';
+      custom = { name:isPre?'Mark PRE':'Custom', motion:defaultParam('sine', 0, 4500), dimmer:defaultParam('sine', 10, 100), colour:col, syncPhase:false };
+    }
+    var bid = 'b'+Date.now();
+    blocks.push({ id:bid, trackId:trackId, cueId:null, custom:custom, start:startSec, dur:isPre?2:4, preset:!!isPre });
+    selectedBlockId = bid;
+    editingBlockId = bid;
+    renderTrackLanes(); renderEditor();
+    logLine(isPre
+      ? 'Pre-set container created — drives the motors to the cue\'s start positions, dark'
+      : 'Custom cue block created on the timeline — editing it in Configure Cue (unsaved; Save Preset to keep it)');
+    return bid;
+  }
+  function tlPasteAtPlayhead(){
+    if(!tlClipboard) return;
+    var nb = deepCopy(tlClipboard);
+    nb.id = 'b'+Date.now();
+    nb.start = snapT(tlElapsed);
+    blocks.push(nb);
+    selectedBlockId = nb.id;
+    if(nb.custom) editingBlockId = nb.id;
+    renderTrackLanes(); renderEditor();
+    logLine('Block pasted at '+nb.start.toFixed(2)+' s');
+  }
+  function tlDeleteBlock(id){
+    var di = blocks.findIndex(function(b){ return b.id===id; });
+    if(di<0) return;
+    if(editingBlockId===id) editingBlockId = null;
+    blocks.splice(di,1);
+    if(selectedBlockId===id) selectedBlockId = null;
+    renderTrackLanes(); renderEditor();
+    logLine('Block deleted','warn');
+  }
+  /* ---- timeline context menu ---- */
+  var ctxMenuEl = document.getElementById('tlCtxMenu');
+  function openTlMenu(x, y, items){
+    ctxMenuEl.innerHTML = items.map(function(it, i){
+      return it.sep ? '<div class="ctx-sep"></div>' : '<div class="ctx-item'+(it.disabled?' disabled':'')+'" data-ci="'+i+'">'+it.label+'</div>';
+    }).join('');
+    ctxMenuEl.hidden = false;
+    ctxMenuEl.style.left = Math.min(x, window.innerWidth-220)+'px';
+    ctxMenuEl.style.top = Math.min(y, window.innerHeight - ctxMenuEl.offsetHeight - 8)+'px';
+    Array.prototype.slice.call(ctxMenuEl.querySelectorAll('.ctx-item')).forEach(function(el){
+      el.addEventListener('click', function(){
+        var it = items[+el.getAttribute('data-ci')];
+        ctxMenuEl.hidden = true;
+        if(it && !it.disabled && it.fn) it.fn();
+      });
+    });
+  }
+  window.addEventListener('pointerdown', function(e){
+    if(!ctxMenuEl.hidden && !(e.target.closest && e.target.closest('#tlCtxMenu'))) ctxMenuEl.hidden = true;
+  }, true);
+
+  /* ---- timeline length (timecode HH:MM:SS:FF @ 25 fps) ---- */
+  function fmtTimecode(sec){
+    sec = Math.max(0, sec);
+    var h = Math.floor(sec/3600), m = Math.floor((sec%3600)/60), ss = Math.floor(sec%60);
+    var f = Math.round((sec - Math.floor(sec))*TL_FPS);
+    if(f>=TL_FPS){ f = 0; ss++; if(ss>=60){ ss=0; m++; } if(m>=60){ m=0; h++; } }
+    return pad(h)+':'+pad(m)+':'+pad(ss)+':'+pad(f);
+  }
+  function parseTimecode(str){
+    var t = String(str||'').trim();
+    if(/^\d+(\.\d+)?$/.test(t)) return parseFloat(t); /* plain seconds */
+    var parts = t.split(':').map(function(x){ return parseInt(x,10); });
+    if(parts.some(isNaN)) return null;
+    var h=0, m=0, ss=0, f=0;
+    if(parts.length===4){ h=parts[0]; m=parts[1]; ss=parts[2]; f=parts[3]; }
+    else if(parts.length===3){ m=parts[0]; ss=parts[1]; f=parts[2]; }
+    else if(parts.length===2){ m=parts[0]; ss=parts[1]; }
+    else return null;
+    return h*3600 + m*60 + ss + f/TL_FPS;
+  }
+  document.getElementById('tlLenInp').addEventListener('change', function(){
+    var secs = parseTimecode(this.value);
+    if(secs===null){ this.value = fmtTimecode(timelineTotal); logLine('Length must be HH:MM:SS:FF (25 fps), MM:SS, or seconds','warn'); return; }
+    timelineTotal = Math.max(8, Math.min(3600, secs));
+    this.value = fmtTimecode(timelineTotal);
+    if(tlElapsed > timelineTotal) tlElapsed = 0;
+    document.getElementById('tlTimeTotal').textContent = fmtTlTime(timelineTotal);
+    renderRuler(); renderTrackLanes(); drawAudioLane();
+    logLine('Timeline length: '+fmtTimecode(timelineTotal)+' ('+TL_FPS+' fps)');
+  });
+
+  /* ---- timeline audio: loads a file, draws its waveform, and plays in
+     lock-step with the playhead (scrub included) ---- */
+  var tlAudio = null;        /* { src, name } — saved in the show file */
+  var tlAudioEl = null;
+  var tlAudioPeaks = null;
+  function tlAudioSync(playing){
+    if(!tlAudioEl) return;
+    if(Math.abs(tlAudioEl.currentTime - tlElapsed) > 0.12){ try{ tlAudioEl.currentTime = tlElapsed; }catch(_e){} }
+    if(playing && tlAudioEl.paused) tlAudioEl.play();
+    if(!playing && !tlAudioEl.paused) tlAudioEl.pause();
+  }
+  function drawAudioLane(){
+    var cv = document.getElementById('audioLane');
+    if(!cv) return;
+    cv.classList.toggle('on', !!tlAudioPeaks);
+    if(!tlAudioPeaks){ cv.width = 1; cv.height = 1; return; }
+    var w = Math.max(1, Math.round(timelineTotal*pxPerSecond)), h = 26;
+    cv.width = w; cv.height = h; cv.style.width = w+'px'; cv.style.height = h+'px';
+    var ctx = cv.getContext('2d');
+    ctx.clearRect(0,0,w,h);
+    ctx.fillStyle = 'rgba(85,144,217,.45)';
+    var bucketSec = 0.05;
+    for(var i=0;i<tlAudioPeaks.length;i++){
+      var x = i*bucketSec*pxPerSecond;
+      if(x>w) break;
+      var amp = tlAudioPeaks[i]*(h/2-1);
+      ctx.fillRect(x, h/2-amp, Math.max(1, bucketSec*pxPerSecond), amp*2 || 1);
+    }
+  }
+  function loadTlAudio(src, name){
+    tlAudio = { src: src, name: name||'audio' };
+    if(tlAudioEl){ tlAudioEl.pause(); }
+    tlAudioEl = new Audio();
+    tlAudioEl.src = src;
+    fetch(src).then(function(r){ return r.arrayBuffer(); }).then(function(ab){
+      var AC = window.AudioContext || window.webkitAudioContext;
+      var ac = new AC();
+      ac.decodeAudioData(ab, function(buf){
+        var ch = buf.getChannelData(0);
+        var bucket = Math.max(1, Math.floor(buf.sampleRate*0.05));
+        var peaks = [];
+        for(var i=0;i<ch.length;i+=bucket){
+          var m = 0;
+          for(var j=i;j<Math.min(i+bucket, ch.length);j++){ var a = Math.abs(ch[j]); if(a>m) m = a; }
+          peaks.push(m);
+        }
+        tlAudioPeaks = peaks;
+        if(buf.duration > timelineTotal){
+          timelineTotal = Math.ceil(buf.duration);
+          document.getElementById('tlLenInp').value = fmtTimecode(timelineTotal);
+          document.getElementById('tlTimeTotal').textContent = fmtTlTime(timelineTotal);
+          renderRuler(); renderTrackLanes();
+          logLine('Timeline extended to '+timelineTotal+' s to fit the audio');
+        }
+        drawAudioLane();
+        ac.close();
+      });
+    });
+    document.getElementById('tlAudioBtn').textContent = '♪ '+(name||'audio');
+    document.getElementById('tlAudioRemoveBtn').style.display = '';
+    logLine('Timeline audio loaded: '+(name||'audio'));
+  }
+  document.getElementById('tlAudioBtn').addEventListener('click', function(){ document.getElementById('tlAudioInp').click(); });
+  document.getElementById('tlAudioInp').addEventListener('change', function(){
+    var f = this.files && this.files[0]; this.value = '';
+    if(!f) return;
+    if(f.size > 25*1024*1024){ logLine('Audio too large ('+Math.round(f.size/1048576)+' MB) — keep it under 25 MB','warn'); return; }
+    var rd = new FileReader();
+    rd.onload = function(){ loadTlAudio(rd.result, f.name); };
+    rd.readAsDataURL(f);
+  });
+  document.getElementById('tlAudioRemoveBtn').addEventListener('click', function(){
+    if(tlAudioEl) tlAudioEl.pause();
+    tlAudio = null; tlAudioEl = null; tlAudioPeaks = null;
+    document.getElementById('tlAudioBtn').textContent = '♪ Audio…';
+    this.style.display = 'none';
+    drawAudioLane();
+    logLine('Timeline audio removed');
+  });
+
+  function tlStopFn(){
     tlPlaying=false; tlElapsed=0; document.getElementById('tlTimeNow').textContent=fmtTlTime(0);
     document.getElementById('tlPlay').classList.remove('active'); tlPlayIconEl.innerHTML='<path d="M0 0l9 4.5L0 9z"/>';
-    renderTrackLanes();
+    if(tlAudioEl){ tlAudioEl.pause(); try{ tlAudioEl.currentTime = 0; }catch(_e){} }
+    updatePlayhead();
+  }
+  document.getElementById('tlStop').addEventListener('click', tlStopFn);
+  document.getElementById('tlLoopBtn').addEventListener('click', function(){
+    tlLoop = !tlLoop;
+    this.textContent = tlLoop ? 'Loop' : 'Once';
+    this.classList.toggle('on', !tlLoop);
+    logLine(tlLoop ? 'Timeline end: LOOP — restarts from 0' : 'Timeline end: ONCE — stops and resets at the end');
   });
-  document.getElementById('tlZoom').addEventListener('input', function(e){ pxPerSecond=+e.target.value; renderRuler(); renderTrackLanes(); });
+  document.getElementById('tlZoom').addEventListener('input', function(e){ pxPerSecond=+e.target.value; renderRuler(); renderTrackLanes(); drawAudioLane(); });
+  var tlBpm = 0; /* 0 = off; >0 draws beat/bar markers and snaps to beats */
+  function snapT(tv){
+    if(tlBpm>0){ var beat = 60/tlBpm; return Math.max(0, Math.round(tv/beat)*beat); }
+    return Math.max(0, Math.round(tv*4)/4);
+  }
+  document.getElementById('tlBpmInp').addEventListener('change', function(){
+    tlBpm = Math.max(0, Math.min(300, Math.round(+this.value)||0));
+    this.value = tlBpm;
+    renderRuler(); renderTrackLanes();
+    logLine(tlBpm ? 'Timeline grid: '+tlBpm+' BPM — blocks snap to beats' : 'Timeline grid: free (0.25 s snap)');
+  });
+  function updatePlayhead(){
+    document.getElementById('tlTimeNow').textContent = fmtTlTime(tlElapsed);
+    Array.prototype.slice.call(trackLanesEl.querySelectorAll('.tl-playhead')).forEach(function(ph){ ph.style.left=(tlElapsed*pxPerSecond)+'px'; });
+  }
+  /* SCRUB — drag on the ruler (or an empty patch of lane) moves the
+     playhead; in Timeline mode the rig follows even while paused */
+  function scrubTo(clientX){
+    var rect = rulerEl.getBoundingClientRect();
+    tlElapsed = Math.max(0, Math.min(timelineTotal, (clientX-rect.left)/pxPerSecond));
+    tlAudioSync(tlPlaying);
+    updatePlayhead();
+  }
+  (function(){
+    var scrubbing = false;
+    rulerEl.style.cursor = 'ew-resize';
+    rulerEl.addEventListener('pointerdown', function(e){ scrubbing = true; rulerEl.setPointerCapture(e.pointerId); scrubTo(e.clientX); });
+    rulerEl.addEventListener('pointermove', function(e){ if(scrubbing) scrubTo(e.clientX); });
+    rulerEl.addEventListener('pointerup', function(){ scrubbing = false; });
+  })();
 
   /* ==========================================================================
      RAIL / DOCK SWITCHING
      ========================================================================== */
   var railBtns = Array.prototype.slice.call(document.querySelectorAll('.rail-btn[data-view]'));
-  var docks = { show:document.getElementById('dockShow'), patch:document.getElementById('dockPatch'), layout:document.getElementById('dockLayout'), live:document.getElementById('dockLive'), library:document.getElementById('dockLibrary'), settings:document.getElementById('dockSettings') };
+  var docks = { show:document.getElementById('dockShow'), patch:document.getElementById('dockPatch'), layout:document.getElementById('dockLayout'), groups:document.getElementById('dockGroups'), live:document.getElementById('dockLive'), library:document.getElementById('dockLibrary'), settings:document.getElementById('dockSettings') };
   railBtns.forEach(function(btn){
     btn.addEventListener('click', function(){
       railBtns.forEach(function(b){ b.classList.remove('active'); });
@@ -2307,9 +3567,19 @@
     renderPatchRows(); renderPatchSummary(); renderPatchNote();
     renderZoneList(); renderZoneInfo(); updateSelCount();
     if(rebuildRig) rebuildRig();
-    drawLayoutPlan(); renderViewportHud();
+    drawLayoutPlan(); drawGroupsPlan(); renderViewportHud();
+  }
+  /* SAFETY: changing the patch while anything is running stops every cue
+     and the timeline — the rig returns to 0 before you rig new hardware */
+  function patchSafetyStop(){
+    var wasRunning = pbRunOrder.length>0 || tlPlaying;
+    if(!wasRunning) return;
+    allStop(false);
+    if(tlPlaying) tlStopFn();
+    logLine('SAFETY: patch changed while running — all cues stopped, rig returning to 0','warn');
   }
   function addFixtures(count){
+    patchSafetyStop();
     var added = 0;
     for(var k=0;k<count;k++){
       var id = winchData.reduce(function(m,w){ return Math.max(m,w.id); }, 0) + 1;
@@ -2332,6 +3602,7 @@
   function removeSelectedFixtures(){
     var ids = Object.keys(selectedPatchIds).map(Number);
     if(!ids.length){ logLine('Tick the fixtures to remove, then press Remove','warn'); return; }
+    patchSafetyStop();
     for(var i=winchData.length-1;i>=0;i--){
       if(selectedPatchIds[winchData[i].id]) winchData.splice(i,1);
     }
@@ -2363,9 +3634,9 @@
         '<td class="mono-cell">'+pad(w.id)+'</td><td><span class="row-status '+w.status+'" title="'+label+'"></span>'+w.name+'</td>' +
         '<td><select class="model-select" data-id="'+w.id+'">'+WINCH_MODELS.map(function(m){return '<option value="'+m.id+'"'+(m.id===w.modelId?' selected':'')+'>'+m.name+'</option>';}).join('')+'</select></td>' +
         '<td><select class="fitting-select" data-id="'+w.id+'">'+FITTINGS.map(function(f){return '<option value="'+f.id+'"'+(f.id===w.fittingId?' selected':'')+'>'+f.name+'</option>';}).join('')+'</select></td>' +
-        '<td class="mono-cell">'+w.consoleAddr+'</td><td><input class="addr-input mono" data-id="'+w.id+'" value="'+w.blkAddr+'"></td><td class="mono-cell">'+w.pos+'</td>' +
-        '<td><input type="number" class="limit-input" data-limit="top" data-id="'+w.id+'" value="'+w.topLimit+'"></td>' +
-        '<td><input type="number" class="limit-input" data-limit="bottom" data-id="'+w.id+'" value="'+w.bottomLimit+'"></td>' +
+        '<td class="mono-cell">'+w.consoleAddr+'</td><td><input class="addr-input mono" data-id="'+w.id+'" value="'+w.blkAddr+'"></td><td class="mono-cell" title="'+dmxToM(w.pos, modelById(w.modelId)).toFixed(2)+' m below top">'+w.pos+'</td>' +
+        '<td><input type="number" class="limit-input" data-limit="top" data-id="'+w.id+'" value="'+w.topLimit+'"><div class="lim-m">'+dmxToM(w.topLimit, modelById(w.modelId)).toFixed(2)+' m</div></td>' +
+        '<td><input type="number" class="limit-input" data-limit="bottom" data-id="'+w.id+'" value="'+w.bottomLimit+'"><div class="lim-m">'+dmxToM(w.bottomLimit, modelById(w.modelId)).toFixed(2)+' m</div></td>' +
         '<td><input type="number" class="limit-input" data-maxspeed="1" data-id="'+w.id+'" value="'+w.maxSpeed+'" style="width:56px;'+(overspeed?'color:var(--red);':'')+'" title="Rated: '+modelById(w.modelId).maxSpeedCmS+' cm/s"></td>' +
         '<td class="mono-cell"'+(overload?' style="color:var(--red);" title="Exceeds BLK RISE 1.2 kg cable limit"':'')+'>'+(w.loadKg!==null?w.loadKg.toFixed(1)+' kg':'—')+'</td></tr>';
     }).join('');
@@ -2380,7 +3651,7 @@
   }
   renderModelsTable(); renderFittingsTable(); renderPatchRows(); renderPatchSummary(); renderPatchNote();
   document.getElementById('addFixturesBtn').addEventListener('click', function(){
-    addFixtures(Math.max(1, Math.min(96, Math.round(+document.getElementById('addFixturesCount').value) || 1)));
+    addFixtures(Math.max(1, Math.min(512, Math.round(+document.getElementById('addFixturesCount').value) || 1)));
   });
   document.getElementById('removeFixturesBtn').addEventListener('click', removeSelectedFixtures);
   /* click anywhere on a row (outside a control) to toggle its selection */
@@ -2482,6 +3753,117 @@
     this.classList.toggle('hl-on', highlightOn);
     logLine(highlightOn ? 'Highlight on — selected fixtures lit full white, position untouched' : 'Highlight off');
   });
+  /* ==========================================================================
+     MOTOR SPEED CALIBRATION — matches the visualiser to the real machine.
+     Run: the fixture homes to its Top limit, then drives the full span to
+     its Bottom limit; the operator presses "Mark Real Arrival" the moment
+     the PHYSICAL unit stops. Real speed = travel / measured time. The
+     correction is stored on the winch MODEL (speedCalPct), so every fixture
+     of that type — visualiser slew included — uses the measured real-world
+     speed from then on.
+     ========================================================================== */
+  var calibrationState = null;
+  var snapRecallIds = {}; /* one-shot: these fixtures' commands snap (no slew) on the next engine tick */
+  function calSpanCm(w){ return (Math.abs(w.bottomLimit-w.topLimit)/255)*(modelLiftM(modelById(w.modelId))*100); }
+  /* per-fixture calibration overrides the model's; either defaults to 100% */
+  function calPctOf(w){ return (w.speedCalPct || modelById(w.modelId).speedCalPct || 100); }
+  function calEffSpeed(w){ return w.maxSpeed * (calPctOf(w)/100); }
+  function updateCalModal(){
+    if(!calibrationState) return;
+    var w = winchById(calibrationState.id); if(!w) return;
+    var m = modelById(w.modelId);
+    document.getElementById('calibrationFixtureInfo').textContent = 'Fixture '+w.name+' — '+m.name+' · '+w.blkAddr+' · current calibration '+(m.speedCalPct||100)+'%';
+    document.getElementById('calibrationCurrentSpeed').textContent = w.maxSpeed+' cm/s cap · effective '+calEffSpeed(w).toFixed(1)+' cm/s';
+    document.getElementById('calibrationTravelSpan').textContent = Math.abs(w.bottomLimit-w.topLimit)+' DMX · '+(calSpanCm(w)/100).toFixed(2)+' m';
+    document.getElementById('calibrationExpectedTime').textContent = (calSpanCm(w)/Math.max(1,calEffSpeed(w))).toFixed(1)+' s at current calibration';
+    var btn = document.getElementById('calibrationRunBtn');
+    var ph = calibrationState.phase;
+    btn.textContent = ph===null ? 'Send to Top' : ph==='homing' ? 'Start Timed Run' : ph==='running' ? 'Mark Real Arrival' : ph==='measured' ? 'Apply to Model (all of type)' : 'Run Again';
+    document.getElementById('calibrationApplySelBtn').style.display = ph==='measured' ? '' : 'none';
+  }
+  function openCalibrationModal(){
+    var ids = Object.keys(selectedPatchIds).map(Number);
+    var w = ids.length ? winchById(ids[0]) : winchById(selectedWinch);
+    if(!w){ logLine('Tick a fixture in Patch (or select one in Test), then press Calibrate Motor','warn'); return; }
+    calibrationState = { id:w.id, phase:null, t0:null };
+    document.getElementById('calibrationMeasuredTime').textContent = '—';
+    updateCalModal();
+    document.getElementById('calibrationModal').hidden = false;
+  }
+  document.getElementById('calibrateBtn').addEventListener('click', openCalibrationModal);
+  document.getElementById('calibrationCloseBtn').addEventListener('click', function(){
+    document.getElementById('calibrationModal').hidden = true;
+    if(calibrationState){
+      var wC = winchById(calibrationState.id);
+      if(wC){
+        wC.testHeight = Math.min(wC.topLimit, wC.bottomLimit);
+        snapRecallIds[wC.id] = true; /* command snaps to top; the winch recovers at its own speed */
+        logLine('Calibration closed — '+wC.name+' recalled to top');
+      }
+    }
+    calibrationState = null;
+  });
+  document.getElementById('calibrationRunBtn').addEventListener('click', function(){
+    if(!calibrationState) return;
+    var w = winchById(calibrationState.id); if(!w) return;
+    var top = Math.min(w.topLimit, w.bottomLimit);
+    if(calibrationState.phase===null || calibrationState.phase==='done'){
+      /* step 1: snap-command the top limit — the real unit travels there at
+         its own full speed; press Start Timed Run once it has stopped */
+      w.testHeight = top;
+      calibrationState.phase = 'homing';
+      document.getElementById('calibrationMeasuredTime').textContent = 'sent to top — wait for the REAL unit to stop, then Start Timed Run';
+      logLine('Calibration: '+w.name+' snapped to its top limit at full speed');
+      updateCalModal();
+    } else if(calibrationState.phase==='homing'){
+      /* step 2: snap to the bottom limit and start the clock — position
+         jumps in one frame, speed channel at rated max, so the measured
+         time is the motor's true top speed over the known span */
+      var bottom = Math.max(w.topLimit, w.bottomLimit);
+      w.testHeight = bottom;
+      calibrationState.t0 = performance.now();
+      calibrationState.phase = 'running';
+      logLine('Calibration: timed run started — snap to bottom at full speed; Mark Real Arrival when the physical unit stops','warn');
+      updateCalModal();
+    } else if(calibrationState.phase==='running'){
+      /* the operator marks the REAL fixture's arrival — measure only;
+         choose where the correction lands with the apply buttons */
+      var measured = (performance.now()-calibrationState.t0)/1000;
+      var realCmS = calSpanCm(w)/Math.max(0.1, measured);
+      var pct = Math.max(20, Math.min(300, Math.round(realCmS / Math.max(1, w.maxSpeed) * 100)));
+      calibrationState.resultPct = pct;
+      calibrationState.phase = 'measured';
+      document.getElementById('calibrationMeasuredTime').textContent = measured.toFixed(2)+' s → real '+realCmS.toFixed(1)+' cm/s → '+pct+'% — choose where to apply';
+      logLine('Calibration measured: '+realCmS.toFixed(1)+' cm/s ('+pct+'%) — apply to the model or to selected fixtures');
+      updateCalModal();
+    } else if(calibrationState.phase==='measured'){
+      /* apply to the MODEL — global for every fixture of this type; any
+         per-fixture overrides on this model are cleared */
+      var mm = modelById(w.modelId);
+      mm.speedCalPct = calibrationState.resultPct;
+      var cnt = 0;
+      winchData.forEach(function(x){ if(x.modelId===mm.id){ delete x.speedCalPct; cnt++; } });
+      logLine('Calibration applied to model '+mm.name+' → '+mm.speedCalPct+'% — global for '+cnt+' fixture'+(cnt===1?'':'s'),'ok');
+      calibrationState.phase = 'done';
+      renderModelsTable(); updateCalModal();
+    }
+  });
+  document.getElementById('calibrationApplySelBtn').addEventListener('click', function(){
+    if(!calibrationState || calibrationState.phase!=='measured') return;
+    var pct = calibrationState.resultPct;
+    var ids = Object.keys(selectedPatchIds).map(Number);
+    if(!ids.length) ids = [calibrationState.id];
+    var applied = 0;
+    ids.forEach(function(id){ var x = winchById(id); if(x){ x.speedCalPct = pct; applied++; } });
+    logLine('Calibration applied to '+applied+' selected fixture'+(applied===1?'':'s')+' → '+pct+'% (overrides the model value)','ok');
+    calibrationState.phase = 'done';
+    updateCalModal();
+  });
+  /* live-updates the running timer during the timed run */
+  setInterval(function(){
+    if(!calibrationState || calibrationState.phase!=='running') return;
+    document.getElementById('calibrationMeasuredTime').textContent = ((performance.now()-calibrationState.t0)/1000).toFixed(1)+' s — running… mark when the real unit stops';
+  }, 200);
 
   /* Sequential-or-same patch dialog */
   var pendingPatch = null;
@@ -2519,8 +3901,34 @@
 
 
   /* ==========================================================================
-     LIVE DOCK
+     TEST DOCK — drives ONE fixture (the selected one) with direct values so
+     every motor/light parameter can be exercised in isolation. While enabled
+     the show engine's values for that fixture are replaced by the test
+     values; the patch Top/Bottom limits are a HARD gate either way. All Stop
+     and E-Stop always win over test control.
      ========================================================================== */
+  var testEnabled = false;
+  function renderTestStatus(){
+    var btn = document.getElementById('testEnableBtn');
+    var st = document.getElementById('deadmanStatus');
+    var grid = document.getElementById('testControls');
+    var w = winchById(selectedWinch);
+    btn.classList.toggle('on', testEnabled);
+    btn.textContent = testEnabled ? 'Test Control ON' : 'Enable Test Control';
+    st.classList.toggle('armed', testEnabled);
+    st.textContent = testEnabled
+      ? 'TEST ACTIVE — driving '+(w?w.name:'—')+' within its patch limits; all other fixtures follow the show'
+      : 'Test disabled — the show engine drives all fixtures';
+    if(grid) grid.classList.toggle('off', !testEnabled);
+  }
+  document.getElementById('testEnableBtn').addEventListener('click', function(){
+    if(!testEnabled && activeAnim.parked){ logLine('E-STOP is latched — press Reset E-Stop before test control','warn'); return; }
+    testEnabled = !testEnabled;
+    var w = winchById(selectedWinch);
+    logLine(testEnabled ? 'Test control ON — '+(w?w.name:'no fixture')+' under manual test' : 'Test control off — show engine resumes', testEnabled?'warn':undefined);
+    renderTestStatus();
+  });
+
   var zoneListEl = document.getElementById('zoneList');
   function renderZoneList(){
     var zc = document.getElementById('zoneCount'); if(zc) zc.textContent = winchData.length;
@@ -2531,64 +3939,131 @@
       row.addEventListener('click', function(){ selectedWinch=+row.getAttribute('data-id'); renderZoneList(); renderZoneInfo(); });
     });
   }
+  function clampToRange(v, min, max){ return Math.max(min, Math.min(max, v)); }
   function renderZoneInfo(){
     var w = winchById(selectedWinch);
-    if(!w){ document.getElementById('zoneInfo').innerHTML = '<span>No fixtures patched</span>'; return; }
-    document.getElementById('zoneInfo').innerHTML = '<span><b>'+w.name+'</b></span><span>Pos <b>'+w.pos+'</b>/255</span><span>Top <b>'+w.topLimit+'</b></span><span>Bot <b>'+w.bottomLimit+'</b></span><span>Model <b>'+modelById(w.modelId).name+'</b></span><span>Max Speed <b>'+w.maxSpeed+' cm/s</b></span><span>Fitting <b>'+fittingById(w.fittingId).name+'</b></span>';
-    document.getElementById('jogTop').title = 'Move to top limit (DMX '+w.topLimit+')';
-    document.getElementById('jogBottom').title = 'Move to bottom limit (DMX '+w.bottomLimit+')';
+    if(!w){
+      document.getElementById('zoneInfo').innerHTML = '<span>No fixtures patched</span>';
+      document.getElementById('testControls').innerHTML = '<p class="lib-note">Select a fixture to test position, colour, dimmer and strobe within its patch limits.</p>';
+      renderTestStatus();
+      return;
+    }
+    var wmZ = modelById(w.modelId);
+    document.getElementById('zoneInfo').innerHTML = '<span><b>'+w.name+'</b></span><span>Top <b>'+w.topLimit+'</b> ('+dmxToM(w.topLimit,wmZ).toFixed(2)+' m)</span><span>Bot <b>'+w.bottomLimit+'</b> ('+dmxToM(w.bottomLimit,wmZ).toFixed(2)+' m)</span><span>Model <b>'+wmZ.name+'</b> · '+modelLiftM(wmZ)+' m lift</span><span>Max Speed <b>'+w.maxSpeed+' cm/s</b></span><span>Fitting <b>'+fittingById(w.fittingId).name+'</b></span>';
+    var minLimit = Math.min(w.topLimit, w.bottomLimit), maxLimit = Math.max(w.topLimit, w.bottomLimit);
+    var height = clampToRange(+w.testHeight || 0, minLimit, maxLimit);
+    var dimmer = clampToRange(w.testDimmer===undefined ? 100 : +w.testDimmer, 0, 100);
+    var strobe = clampToRange(+w.testStrobe || 0, 0, 100);
+    var speed = clampToRange(w.testSpeed===undefined ? 100 : +w.testSpeed, 1, 100);
+    w.testHeight = height;
+    w.testDimmer = dimmer;
+    w.testStrobe = strobe;
+    w.testSpeed = speed;
+    w.testColor = w.testColor || '#ffffff';
+    /* Height is expressed directly in DMX and HARD-clamped to this channel's
+       patch Top/Bottom window — the slider physically cannot leave it. */
+    document.getElementById('testControls').innerHTML =
+      '<div class="test-field"><label>Height</label><div class="test-inline"><input id="testHeightRange" type="range" min="'+minLimit+'" max="'+maxLimit+'" value="'+height+'"><span class="mono" id="testHeightValue">'+height+' · '+dmxToM(height, modelById(w.modelId)).toFixed(2)+' m</span></div><input id="testHeightNumber" type="number" min="'+minLimit+'" max="'+maxLimit+'" value="'+height+'"></div>' +
+      '<div class="test-field"><label>Nudge</label><div class="btn-row"><button class="flat-btn" data-test-nudge="-5">−5</button><button class="flat-btn" data-test-nudge="-1">−1</button><button class="flat-btn" data-test-nudge="1">+1</button><button class="flat-btn" data-test-nudge="5">+5</button></div><span class="unit" style="font-size:10.5px;color:var(--text-3);">limits '+minLimit+'–'+maxLimit+' ('+dmxToM(minLimit, modelById(w.modelId)).toFixed(2)+'–'+dmxToM(maxLimit, modelById(w.modelId)).toFixed(2)+' m)</span></div>' +
+      '<div class="test-field"><label>Speed</label><div class="test-inline"><input id="testSpeedRange" type="range" min="1" max="100" value="'+speed+'"><span class="mono" id="testSpeedValue">'+speed+'%</span></div></div>' +
+      '<div class="test-field"><label>Colour</label><div class="test-palette">' + ['#ffffff','#d84a38','#4da05e','#5590d9','#e2a63d','#b06cc4','#ececea'].map(function(c){ return '<button data-test-color="'+c+'" style="background:'+c+'" class="'+(w.testColor.toLowerCase()===c.toLowerCase()?'active':'')+'" title="'+c+'"></button>'; }).join('') + '</div><input id="testColourPicker" type="color" value="'+w.testColor+'"></div>' +
+      '<div class="test-field"><label>Dimmer</label><div class="test-inline"><input id="testDimmerRange" type="range" min="0" max="100" value="'+dimmer+'"><span class="mono" id="testDimmerValue">'+dimmer+'%</span></div><input id="testDimmerNumber" type="number" min="0" max="100" value="'+dimmer+'"></div>' +
+      '<div class="test-field"><label>Strobe</label><div class="test-inline"><input id="testStrobeRange" type="range" min="0" max="100" value="'+strobe+'"><span class="mono" id="testStrobeValue">'+strobe+'%</span></div><span class="unit" style="font-size:10.5px;color:var(--text-3);">9/10CH modes only</span></div>';
+    function setHeight(v){
+      v = clampToRange(Math.round(v), minLimit, maxLimit);
+      w.testHeight = v;
+      document.getElementById('testHeightRange').value = v;
+      document.getElementById('testHeightNumber').value = v;
+      document.getElementById('testHeightValue').textContent = v+' · '+dmxToM(v, modelById(w.modelId)).toFixed(2)+' m';
+    }
+    document.getElementById('testHeightRange').addEventListener('input', function(){ setHeight(+this.value); });
+    document.getElementById('testHeightNumber').addEventListener('input', function(){ setHeight(+this.value); });
+    Array.prototype.slice.call(document.querySelectorAll('[data-test-nudge]')).forEach(function(btn){
+      btn.addEventListener('click', function(){ setHeight((w.testHeight||0) + (+btn.getAttribute('data-test-nudge'))); });
+    });
+    document.getElementById('testSpeedRange').addEventListener('input', function(){ var v = clampToRange(+this.value, 1, 100); w.testSpeed = v; document.getElementById('testSpeedValue').textContent = v+'%'; });
+    Array.prototype.slice.call(document.querySelectorAll('[data-test-color]')).forEach(function(btn){
+      btn.addEventListener('click', function(){
+        w.testColor = btn.getAttribute('data-test-color');
+        document.getElementById('testColourPicker').value = w.testColor;
+        Array.prototype.slice.call(document.querySelectorAll('[data-test-color]')).forEach(function(b2){ b2.classList.toggle('active', b2.getAttribute('data-test-color').toLowerCase()===w.testColor.toLowerCase()); });
+      });
+    });
+    var testColourPicker = document.getElementById('testColourPicker');
+    if(testColourPicker){ testColourPicker.addEventListener('input', function(){ w.testColor = this.value; Array.prototype.slice.call(document.querySelectorAll('[data-test-color]')).forEach(function(btn){ btn.classList.toggle('active', btn.getAttribute('data-test-color').toLowerCase()===w.testColor.toLowerCase()); }); }); }
+    var testDimmerRange = document.getElementById('testDimmerRange');
+    if(testDimmerRange){ testDimmerRange.addEventListener('input', function(){ var v = clampToRange(+this.value, 0, 100); w.testDimmer = v; document.getElementById('testDimmerNumber').value = v; document.getElementById('testDimmerValue').textContent = v+'%'; }); }
+    var testDimmerNumber = document.getElementById('testDimmerNumber');
+    if(testDimmerNumber){ testDimmerNumber.addEventListener('input', function(){ var v = clampToRange(+this.value, 0, 100); w.testDimmer = v; document.getElementById('testDimmerRange').value = v; document.getElementById('testDimmerValue').textContent = v+'%'; }); }
+    var testStrobeRange = document.getElementById('testStrobeRange');
+    if(testStrobeRange){ testStrobeRange.addEventListener('input', function(){ var v = clampToRange(+this.value, 0, 100); w.testStrobe = v; document.getElementById('testStrobeValue').textContent = v+'%'; }); }
+    renderTestStatus();
   }
   renderZoneList(); renderZoneInfo();
 
-  /* Flat te-style faders (rect track + horizontal cap) */
-  function buildFader(container, name, initVal, colorVar){
-    var wrap = document.createElement('div'); wrap.className = 'fader';
-    wrap.innerHTML = '<div class="fd-name">'+name+'</div><div class="fader-track"><div class="fader-cap" style="top:'+((100-initVal)/100*130)+'px;background:'+(colorVar||'var(--text)')+';"></div></div><div class="fd-val">'+initVal+'</div>';
-    container.appendChild(wrap);
-    var track = wrap.querySelector('.fader-track'), cap = wrap.querySelector('.fader-cap'), val = wrap.querySelector('.fd-val');
-    var val_ = initVal;
-    function setFromClientY(clientY){
-      var rect = track.getBoundingClientRect();
-      var pct = Math.max(0, Math.min(1, 1-(clientY-rect.top)/rect.height));
-      val_ = Math.round(pct*100);
-      cap.style.top = ((100-val_)/100*130)+'px';
-      val.textContent = val_;
-    }
-    var dragging=false;
-    track.addEventListener('pointerdown', function(e){ dragging=true; track.setPointerCapture(e.pointerId); setFromClientY(e.clientY); });
-    track.addEventListener('pointermove', function(e){ if(dragging) setFromClientY(e.clientY); });
-    track.addEventListener('pointerup', function(){ dragging=false; });
-    return wrap;
-  }
-  var masterFadersEl = document.getElementById('masterFaders');
-  buildFader(masterFadersEl, 'Speed', 64, 'var(--accent)');
-  buildFader(masterFadersEl, 'Dimmer', 90, 'var(--text)');
-  var channelFadersEl = document.getElementById('channelFaders');
-  [['Red',78,'#d84a38'],['Green',34,'#4da05e'],['Blue',52,'#5590d9'],['White',60,'#ececea']].forEach(function(c){ buildFader(channelFadersEl, c[0], c[1], c[2]); });
+  /* Live DMX byte readout for the selected fixture — rendered from the SAME
+     engine frame + personality mapper the output streams, so what you read
+     here is byte-for-byte what's on the wire. */
+  setInterval(function(){
+    var el = document.getElementById('testDmx');
+    if(!el || !el.clientWidth) return; /* Test view not visible */
+    var w = winchById(selectedWinch);
+    if(!w){ el.innerHTML = '<p class="lib-note">No fixture selected.</p>'; return; }
+    var idx = winchData.indexOf(w);
+    var frame = engineTick();
+    var o = frame[idx];
+    if(!o) return;
+    var m = modelById(w.modelId);
+    var ap = String(w.blkAddr).split('.');
+    var bytes = personalityBytes(w, o);
+    var html = '<div class="dmx-addr">'+w.name+' — U'+ap[0]+' ch '+ap[1]+' · '+(m.dmxMode||'6')+'CH · '+m.name+'</div>';
+    bytes.forEach(function(bv, k){
+      html += '<div class="dmx-row"><span>'+(+ap[1]+k)+' · '+bv[0]+'</span><b>'+Math.max(0, Math.min(255, Math.round(bv[1])))+'</b></div>';
+    });
+    el.innerHTML = html;
+  }, 100);
 
   /* ==========================================================================
-     KEYBOARD SHORTCUTS + DEAD-MAN
+     KEYBOARD SHORTCUTS
      ========================================================================== */
-  var ctrlHeld = false;
   function isTypingTarget(el){ return el && (el.tagName==='INPUT'||el.tagName==='SELECT'||el.tagName==='TEXTAREA'); }
-  function updateDeadman(){
-    var el = document.getElementById('deadmanStatus');
-    el.textContent = ctrlHeld ? 'Dead-man engaged — release to stop' : 'Hold Ctrl to arm manual moves';
-    el.classList.toggle('armed', ctrlHeld);
-    Array.prototype.slice.call(document.querySelectorAll('.jog-btn')).forEach(function(b){ b.disabled = !ctrlHeld; });
-  }
   window.addEventListener('keydown', function(e){
-    if(e.key==='Control'){ ctrlHeld=true; updateDeadman(); }
     if(isTypingTarget(document.activeElement)) return;
+    if(showMode==='timeline'){
+      if((e.metaKey||e.ctrlKey) && e.key.toLowerCase()==='c' && selectedBlockId){
+        var cb = blocks.find(function(b){ return b.id===selectedBlockId; });
+        if(cb){ tlClipboard = deepCopy(cb); e.preventDefault(); logLine('Block copied — Cmd/Ctrl+V pastes at the playhead'); return; }
+      }
+      if((e.metaKey||e.ctrlKey) && e.key.toLowerCase()==='v' && tlClipboard){
+        tlPasteAtPlayhead();
+        e.preventDefault(); return;
+      }
+      if((e.key==='Delete' || e.key==='Backspace') && selectedBlockId){
+        tlDeleteBlock(selectedBlockId);
+        e.preventDefault(); return;
+      }
+    }
+    if(e.key===' '){
+      e.preventDefault();
+      if(e.ctrlKey){
+        allStop(true);
+        logLine('E-STOP (Ctrl+Space) — axes recalled to top, output off. Press Reset E-Stop to clear','warn');
+        return;
+      }
+      /* Space = timeline transport, from anywhere: jumps to Timeline mode
+         if needed, then toggles play/pause */
+      if(activeAnim.parked){ logLine('E-STOP is latched — press Reset E-Stop first','warn'); return; }
+      if(showMode!=='timeline') setShowMode('timeline');
+      document.getElementById('tlPlay').click();
+      return;
+    }
     switch(e.key){
-      case ' ': e.preventDefault(); allStop(true); logLine('All Stop (Space) — axes recalled to top, output off','warn'); break;
       case 'PageUp': e.preventDefault(); selectedCueId=Math.max(0,selectedCueId-1); renderCueGrid(); renderEditor(); break;
       case 'PageDown': e.preventDefault(); selectedCueId=Math.min(cues.length-1,selectedCueId+1); renderCueGrid(); renderEditor(); break;
       case 'Home': e.preventDefault(); selectedCueId=0; renderCueGrid(); renderEditor(); break;
       case 'End': e.preventDefault(); selectedCueId=cues.length-1; renderCueGrid(); renderEditor(); break;
     }
   });
-  window.addEventListener('keyup', function(e){ if(e.key==='Control'){ ctrlHeld=false; updateDeadman(); } });
 
   /* ==========================================================================
      SHOW ENGINE — the single source of truth for what every fixture is doing
@@ -2601,7 +4076,7 @@
      a pure function of the clock, and the slew integrates the elapsed
      wave-clock time between calls.
      ========================================================================== */
-  var LIFT_M = 5.0, LIFT_MM = 5000; /* DMX 255 = full 5 m drop below the truss */
+  /* DMX 255 = the model's full cable drop — see modelLiftM() */
   var showClock = 0, showClockLast = null;
   var engState = { t:null, cur:null, init:false, out:[] };
   function engineTick(){
@@ -2611,41 +4086,203 @@
     showClockLast = nowMs;
 
     var n = winchData.length;
-    if(!engState.cur || engState.cur.length!==n){
+    var needRebuild = !engState.cur || engState.cur.length!==n;
+    if(!needRebuild && engState.ids){
+      for(var ck=0; ck<n; ck++){ if(engState.ids[ck]!==winchData[ck].id){ needRebuild = true; break; } }
+    }
+    if(needRebuild){
+      /* the patch changed shape: existing fixtures KEEP their simulated
+         position (carried by winch id); NEW fixtures power on at their top
+         limit and must physically slew into any running pattern — nothing
+         ever teleports into formation */
+      var prevPos = {};
+      if(engState.ids && engState.cur){
+        for(var pk=0; pk<engState.ids.length; pk++){ prevPos[engState.ids[pk]] = engState.cur[pk]; }
+      }
       engState.cur = new Float32Array(n);
-      engState.init = false;
+      engState.ids = new Array(n);
       engState.out = new Array(n);
-      for(var k=0;k<n;k++) engState.out[k] = { dmx:0, r:0, g:0, b:0, dim:0, limited:false };
+      for(var k=0;k<n;k++){
+        var wk = winchData[k];
+        engState.ids[k] = wk.id;
+        engState.cur[k] = (prevPos[wk.id]!==undefined) ? prevPos[wk.id] : Math.min(wk.topLimit, wk.bottomLimit);
+        engState.out[k] = { dmx:engState.cur[k], r:0, g:0, b:0, dim:0, limited:false, strobe:0, speedScale:1 };
+      }
     }
     var dt = engState.t===null ? 0 : Math.min(0.1, Math.max(0, showClock-engState.t));
     engState.t = showClock;
     if(!n) return engState.out;
 
-    var cue = animCueOrIdle();
-    var mP = cue.motion, dP = cue.dimmer, cP = cue.colour, sync = !!cue.syncPhase;
-    var mS = distSpread(mP);
-    var dSrc = sync ? mP : dP, cSrc = sync ? mP : cP;
-    var lo = hexToRgb(cP.lowHex), hi = hexToRgb(cP.highHex);
-    var playing = activeAnim.playing, t = showClock;
+    /* SOURCE STACK — later wins for the params it filters, on the fixtures
+       its group covers: base preview/idle → running playbacks (activation
+       order) → timeline tracks while the timeline plays. */
+    var sources = [];
+    var tlSources = [];
+    if(showMode==='timeline'){
+      /* Timeline mode: blocks drive even while paused so scrubbing previews.
+         Waves run on BLOCK-LOCAL time, so scrubbing is deterministic — the
+         same playhead position always looks the same. */
+      var anySolo = TRACKS.some(function(tr){ return tr.solo; });
+      TRACKS.forEach(function(tr){
+        if(tr.mute || (anySolo && !tr.solo)) return;
+        var blk = null;
+        for(var bi=0;bi<blocks.length;bi++){
+          var b = blocks[bi];
+          if(b.trackId===tr.id && tlElapsed>=b.start && tlElapsed<b.start+b.dur){ blk = b; break; }
+        }
+        if(!blk) return;
+        var bc = blk.custom || cueById(blk.cueId);
+        /* pre-set containers park the rig at the cue's STARTING positions,
+           dark (no dimmer) — a silent mover before the real block fires */
+        if(bc) tlSources.push({ cue:bc, group:tr.groupId||null, filter:tr.filter||null, time: blk.preset ? 0 : tlElapsed-blk.start, preset: !!blk.preset });
+      });
+    }
+    var tlActive = tlSources.length>0;
+    /* handover: running cues HOLD across the tab switch and only release the
+       moment a timeline block actually takes over */
+    if(tlActive && pbRunOrder.length){
+      PB_COLORS.forEach(function(k){ if(playbacks[k].state==='running') playbacks[k].state='stopped'; });
+      pbRunOrder = [];
+      activeAnim.playing = false;
+      logLine('Timeline took over — cue playbacks released');
+      renderCueGrid(); renderSystemState();
+    }
+    if(!tlActive){
+      /* cues drive in activation order (both modes, until the timeline acts) */
+      pbRunOrder.forEach(function(color){
+        var pb = playbacks[color];
+        if(pb.state!=='running' || pb.loaded===null) return;
+        var pc = cueById(pb.loaded); if(!pc) return;
+        sources.push({ cue:pc, group:pc.groupId||null, filter:pc.filter||null, time:showClock });
+      });
+    }
+    tlSources.forEach(function(ts){ sources.push(ts); });
+    /* the base is always REST: if nothing is running the rig returns to its
+       top limits and lights off — only running sources move fixtures */
+    var baseCue = IDLE_CUE;
+    var basePlaying = false;
+    var t = showClock;
 
     for(var i=0;i<n;i++){
       var w = winchData[i], o = engState.out[i];
       var col = i%GRID_COLS, row = Math.floor(i/GRID_COLS);
+      var minLimit = Math.min(w.topLimit, w.bottomLimit), maxLimit = Math.max(w.topLimit, w.bottomLimit);
+      /* manual test control: the SELECTED fixture while Test Control is
+         enabled, or a fixture mid-calibration run — driven by its test
+         values instead of the show. E-Stop always wins. */
+      var calibrating = !activeAnim.parked && calibrationState && calibrationState.phase && calibrationState.id===w.id;
+      var testing = calibrating || (!activeAnim.parked && testEnabled && w.id===selectedWinch);
+      var target;
 
-      /* position: waveform → drop in mm → DMX demand → scaled into this
-         channel's Top–Bottom window (limits compress, never clip) */
-      var phase = combinedPhase(col, row, GRID_COLS, GRID_ROWS, mP.mx, mP.my)*mS;
-      var wv = mP.shape==='static' ? 1 : waveValue(mP.shape, t*(playing?mP.rate/100:0)*WAVE_FREQ + mP.phase/100 + phase);
-      var dropMm = mP.high - wv*(mP.high - mP.low);
-      var demand = (dropMm/LIFT_MM)*255;
-      var target = activeAnim.parked ? w.topLimit : w.topLimit + (demand/255)*(w.bottomLimit - w.topLimit);
-      target = Math.max(0, Math.min(255, target));
+      var wm = modelById(w.modelId);
+      var liftM = modelLiftM(wm);
+      if(testing){
+        target = clampToRange(+w.testHeight || 0, minLimit, maxLimit);
+        var trgb = hexToRgb(w.testColor || '#ffffff');
+        o.r = trgb[0]; o.g = trgb[1]; o.b = trgb[2];
+        /* linear dimmer in test so the DMX byte is predictable: 50% → 127 */
+        o.dim = clampToRange((w.testDimmer===undefined?100:+w.testDimmer)/100, 0, 1);
+        /* ES-L29 basic strobe band 4–44 (slow→fast); 0 = open */
+        o.strobe = (+w.testStrobe||0) > 0 ? 4 + Math.round(((+w.testStrobe)/100)*40) : 0;
+        /* calibration commands the model's RATED speed (byte 0 = fastest)
+           so the run measures the true maximum, not the operator's cap */
+        o.speedScale = calibrating ? (wm.maxSpeedCmS||75)/Math.max(1, w.maxSpeed)
+                                   : clampToRange((w.testSpeed===undefined?100:+w.testSpeed)/100, 0.01, 1);
+      } else {
+        /* resolve this fixture's per-parameter sources from the stack:
+           each running cue / timeline track claims only the params its
+           filter covers, only on the fixtures its group covers */
+        var mSel = { cue:baseCue, live:basePlaying, time:t }, dSel = mSel, cSel = mSel;
+        for(var si=0; si<sources.length; si++){
+          var srcS = sources[si];
+          if(!groupHas(srcS.group, w.id)) continue;
+          var ff = srcS.filter;
+          var entry = { cue:srcS.cue, live:!srcS.preset, time:srcS.time, dark:!!srcS.preset };
+          if(!ff || ff.motion) mSel = entry;
+          if(!ff || ff.dimmer) dSel = entry;
+          if(!ff || ff.colour) cSel = entry;
+        }
+        var mP = mSel.cue.motion, mS = distSpread(mP);
+        var dCue = dSel.cue, dP = dCue.dimmer;
+        var dSync = !!dCue.syncPhase, dSrc = dSync ? dCue.motion : dP;
+        var cCue = cSel.cue, cP = cCue.colour;
+        var cSync = !!cCue.syncPhase, cSrc = cSync ? cCue.motion : cP;
+        var lo = hexToRgb(cP.lowHex), hi = hexToRgb(cP.highHex);
 
-      /* slew: chase the demand at no more than the winch's rated speed */
+        /* position: waveform → drop in mm → DMX demand → scaled into this
+           channel's Top–Bottom window (limits compress, never clip) */
+        var phase = combinedPhase(col, row, GRID_COLS, GRID_ROWS, mP.mx, mP.my)*mS;
+        var wv;
+        if(mP.shape==='bitmap'){
+          var mLev = bitmapLevel(mP, col, row, mSel.time*(mSel.live?mP.rate/100:0)*WAVE_FREQ + mP.phase/360);
+          wv = mLev===null ? 0 : mLev; /* black = Low, white = High */
+        } else {
+          wv = mP.shape==='static' ? 1 : waveValue(mP.shape, mSel.time*(mSel.live?mP.rate/100:0)*WAVE_FREQ + mP.phase/360 + phase);
+        }
+        /* wave value maps low→high exactly as the editor preview draws it,
+           so a block/cue entry begins at the START of the drawn waveform —
+           with Low = 0 that is rest, giving a clean ramp-in every time */
+        var dropMm = mP.low + wv*(mP.high - mP.low);
+        var demand = (dropMm/(liftM*1000))*255; /* cue mm → this model's real travel */
+        target = activeAnim.parked ? w.topLimit : w.topLimit + (demand/255)*(w.bottomLimit - w.topLimit);
+
+        /* colour — Sync locks to its OWN cue's motion */
+        var cph = combinedPhase(col, row, GRID_COLS, GRID_ROWS, cSrc.mx||cP.mx, cSrc.my||cP.my)*(cSync?distSpread(cCue.motion):distSpread(cP));
+        var cCyc = cSync ? cSel.time*(cSel.live?cCue.motion.rate/100:0)*WAVE_FREQ + cCue.motion.phase/360
+                         : cSel.time*(cSel.live?0.3:0);
+        var bmRgb = cP.shape==='bitmap' ? bitmapSample(cP, col, row, cCyc) : null;
+        if(bmRgb){
+          o.r = bmRgb[0]; o.g = bmRgb[1]; o.b = bmRgb[2];
+        } else {
+          var cwv = cP.shape==='bitmap' ? (((cph%1)+1)%1)
+                  : cP.shape==='static' ? 1
+                  : waveValue(cP.shape, cCyc + cph);
+          o.r = lo[0]+(hi[0]-lo[0])*cwv;
+          o.g = lo[1]+(hi[1]-lo[1])*cwv;
+          o.b = lo[2]+(hi[2]-lo[2])*cwv;
+        }
+
+        /* dimmer — same gamma on screen and on the wire */
+        var dph = combinedPhase(col, row, GRID_COLS, GRID_ROWS, dSrc.mx, dSrc.my)*(dSync?distSpread(dCue.motion):distSpread(dP));
+        var dwv;
+        if(dP.shape==='bitmap'){
+          var dLev = bitmapLevel(dP, col, row, dSel.time*(dSel.live?dSrc.rate/100:0)*WAVE_FREQ + dSrc.phase/360);
+          dwv = dLev===null ? 0 : dLev; /* black = Low, white = High */
+        } else {
+          dwv = dP.shape==='static' ? 1 : waveValue(dP.shape, dSel.time*(dSel.live?dSrc.rate/100:0)*WAVE_FREQ + dSrc.phase/360 + dph);
+        }
+        var dim = Math.max(0, Math.min(1, (dP.low + dwv*(dP.high-dP.low))/100));
+        if(activeAnim.parked || dSel.dark) dim = 0; /* pre-set container: dark move */
+        o.dim = Math.pow(dim, 1.8);
+        o.strobe = 0;
+        /* E-stop is a panic: command the model's full rated speed */
+        o.speedScale = activeAnim.parked ? (wm.maxSpeedCmS||75)/Math.max(1, w.maxSpeed) : 1;
+      }
+
+      /* Highlight service function: the Patch selection burns full white on
+         screen AND on the wire — position untouched, so you can find a unit
+         in the rig without moving it */
+      if(highlightOn && selectedPatchIds[w.id] && !activeAnim.parked){
+        o.r = 255; o.g = 255; o.b = 255; o.dim = 1; o.strobe = 0;
+      }
+
+      /* HARD LIMIT — no source (cue, test, calibration) may leave the
+         channel's patched Top/Bottom window */
+      target = Math.max(minLimit, Math.min(maxLimit, target));
+
+      /* slew: chase the demand at no more than the winch's effective real
+         speed: operator cap × per-model calibration × test speed scale */
       o.limited = false;
-      if(!engState.init){ engState.cur[i] = target; }
+      var effCmS = w.maxSpeed * (((w.speedCalPct || wm.speedCalPct)||100)/100) * o.speedScale;
+      /* calibration SNAPS the command: the position byte jumps to the limit
+         in one frame so the physical motor free-runs at its own top speed —
+         a ramped command would only ever measure our current assumption */
+      if(calibrating || activeAnim.parked || snapRecallIds[w.id]){
+        engState.cur[i] = target;
+        if(snapRecallIds[w.id]) delete snapRecallIds[w.id];
+      }
       else {
-        var maxStep = (w.maxSpeed/100)*(255/LIFT_M)*dt; /* cm/s → DMX units/s */
+        var maxStep = (effCmS/100)*(255/liftM)*dt; /* cm/s → DMX units/s over THIS model's travel */
         var dpos = target - engState.cur[i];
         if(Math.abs(dpos) > maxStep){
           engState.cur[i] += (dpos>0?maxStep:-maxStep);
@@ -2655,26 +4292,29 @@
         else { engState.cur[i] = target; }
       }
       o.dmx = engState.cur[i];
-
-      /* colour — Sync locks its phase/rate/direction to Motion */
-      var cph = combinedPhase(col, row, GRID_COLS, GRID_ROWS, cSrc.mx||mP.mx, cSrc.my||mP.my)*(sync?mS:distSpread(cSrc));
-      var cwv = cP.shape==='bitmap' ? (((cph%1)+1)%1)
-              : cP.shape==='static' ? 1
-              : waveValue(cP.shape, sync ? t*(playing?mP.rate/100:0)*WAVE_FREQ + mP.phase/100 + cph
-                                         : t*(playing?0.3:0) + cph);
-      o.r = lo[0]+(hi[0]-lo[0])*cwv;
-      o.g = lo[1]+(hi[1]-lo[1])*cwv;
-      o.b = lo[2]+(hi[2]-lo[2])*cwv;
-
-      /* dimmer — same gamma on screen and on the wire */
-      var dph = combinedPhase(col, row, GRID_COLS, GRID_ROWS, dSrc.mx, dSrc.my)*(sync?mS:distSpread(dSrc));
-      var dwv = dP.shape==='static' ? 1 : waveValue(dP.shape, t*(playing?dSrc.rate/100:0)*WAVE_FREQ + dSrc.phase/100 + dph);
-      var dim = Math.max(0, Math.min(1, (dP.low + dwv*(dP.high-dP.low))/100));
-      if(activeAnim.parked) dim = 0;
-      o.dim = Math.pow(dim, 1.8);
     }
-    engState.init = true;
     return engState.out;
+  }
+  /* One personality mapper for BOTH the DMX output and the Test view's byte
+     readout — what you read on screen is byte-for-byte what leaves the app.
+     Returns [label, value] pairs in channel order per the ES-L29 charts. */
+  function personalityBytes(w, o){
+    var m = modelById(w.modelId);
+    var mode = m.dmxMode || '6';
+    var posF = Math.max(0, Math.min(255, o.dmx));
+    var pos8 = Math.floor(posF);
+    var posFine = Math.round((posF-pos8)*255);
+    /* hardware speed channel is inverted: 0 = fast, 255 = slow */
+    var cmdCmS = w.maxSpeed * (o.speedScale||1);
+    var speedByte = Math.round((1 - Math.max(0, Math.min(1, cmdCmS/(m.maxSpeedCmS||75))))*255);
+    var dimByte = Math.round(Math.max(0, Math.min(1, o.dim))*255);
+    var r = Math.round(o.r), g = Math.round(o.g), b = Math.round(o.b);
+    var strobe = Math.round(o.strobe||0);
+    if(mode==='5')  return [['Motor',pos8],['Speed',speedByte],['Red',Math.round(r*o.dim)],['Green',Math.round(g*o.dim)],['Blue',Math.round(b*o.dim)]];
+    if(mode==='9')  return [['Motor',pos8],['Speed',speedByte],['Dimmer',dimByte],['Strobe',strobe],['Red',r],['Green',g],['Blue',b],['Macro',0],['Control',0]];
+    if(mode==='10') return [['Motor',pos8],['Fine',posFine],['Speed',speedByte],['Dimmer',dimByte],['Strobe',strobe],['Red',r],['Green',g],['Blue',b],['Macro',0],['Control',0]];
+    /* 6CH default */
+    return [['Motor',pos8],['Fine',posFine],['Speed',speedByte],['Red',Math.round(r*o.dim)],['Green',Math.round(g*o.dim)],['Blue',Math.round(b*o.dim)]];
   }
 
   /* ==========================================================================
@@ -2709,24 +4349,31 @@
     /* LEDs are diffusing emitters: mostly self-lit with gentle form shading.
        uGlow>0 switches to the halo pass — additive, radial falloff, scaled by
        the fixture's live brightness so dark units cast no glow. */
-    var sphereFS = ['precision mediump float;','varying vec3 vNormal;','varying vec3 vPos;','uniform vec3 uColor;','uniform vec3 uLightDir;','uniform vec3 uEye;','uniform float uGlow;',
+    var sphereFS = ['precision mediump float;','varying vec3 vNormal;','varying vec3 vPos;','uniform vec3 uColor;','uniform vec3 uLightDir;','uniform vec3 uEye;','uniform float uGlow;','uniform float uEmis;',
       'void main(){','  vec3 n = normalize(vNormal);','  vec3 vdir = normalize(uEye - vPos);',
       '  if(uGlow > 0.001){','    float fall = max(dot(n, vdir), 0.0);','    gl_FragColor = vec4(uColor, uGlow * pow(fall, 2.4));','  } else {',
       '    float diff = max(dot(n,uLightDir),0.0);','    float top = max(n.y,0.0);',
-      '    vec3 col = uColor*(0.52 + diff*0.5 + top*0.12);','    gl_FragColor = vec4(col,1.0);','  }','}'].join('\n');
+      '    vec3 matte = uColor*(0.52 + diff*0.5 + top*0.12);',
+      /* emissive: flat luminous body, white-hot core toward the viewer,
+         soft limb falloff — a glowing source, not a shaded prop */
+      '    float facing = max(dot(n, vdir), 0.0);',
+      '    float e = clamp(uEmis, 0.0, 1.0);',
+      '    vec3 emis = uColor*(0.72 + 0.5*pow(facing,0.5)) + vec3(1.0)*pow(facing,2.2)*0.32*e;',
+      '    gl_FragColor = vec4(mix(matte, emis, e), 1.0);','  }','}'].join('\n');
     var sphereProg = makeProgram(sphereVS, sphereFS);
     var sLoc = { aPos:gl.getAttribLocation(sphereProg,'aPos'),
       uProj:gl.getUniformLocation(sphereProg,'uProj'), uView:gl.getUniformLocation(sphereProg,'uView'),
       uCenter:gl.getUniformLocation(sphereProg,'uCenter'), uScale:gl.getUniformLocation(sphereProg,'uScale'),
       uColor:gl.getUniformLocation(sphereProg,'uColor'), uLightDir:gl.getUniformLocation(sphereProg,'uLightDir'),
-      uEye:gl.getUniformLocation(sphereProg,'uEye'), uGlow:gl.getUniformLocation(sphereProg,'uGlow') };
+      uEye:gl.getUniformLocation(sphereProg,'uEye'), uGlow:gl.getUniformLocation(sphereProg,'uGlow'),
+      uEmis:gl.getUniformLocation(sphereProg,'uEmis') };
 
-    var floorY=0, restY=2.6; /* LIFT_M/LIFT_MM come from the shared show engine */
+    var floorY=0, restY=2.6;
     /* The rendered rig IS the patch: one fixture per patched winch channel,
        placed into the Layout grid in patch order (wrapping every `cols`).
        rebuildRig() re-derives everything from the patch + layout, so adding
        or removing fixtures reshapes the Monitor live. */
-    var N, halfW, halfD, trussY, fixtureBase, fixturePos, fixtureColor, fixtureScale;
+    var N, halfW, halfD, trussY, fixtureBase, fixturePos, fixtureColor, fixtureScale, fixtureLimitBlend;
     rebuildRig = function(){
       GRID_COLS = Math.max(1, layout.cols|0);
       N = winchData.length;
@@ -2737,11 +4384,13 @@
       fixtureBase = [];
       for(var f3=0; f3<N; f3++){ fixtureBase.push({ col:f3%GRID_COLS, row:Math.floor(f3/GRID_COLS) }); }
       fixturePos = new Float32Array(N*3); fixtureColor = new Float32Array(N*3); fixtureScale = new Float32Array(N*3);
+      fixtureLimitBlend = new Float32Array(N);
+      staticDirty = true; /* floor grid + truss follow the new extents */
     };
     rebuildRig();
 
     /* unit sphere mesh, shared by every fixture */
-    var STACKS=10, SLICES=14, sphereVerts=[], sphereIdx=[];
+    var STACKS=16, SLICES=24, sphereVerts=[], sphereIdx=[];
     for(var st=0; st<=STACKS; st++){
       var sphi = Math.PI*st/STACKS - Math.PI/2;
       for(var sl=0; sl<=SLICES; sl++){
@@ -2759,14 +4408,34 @@
     var sphereIdxBuf=gl.createBuffer(); gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,sphereIdxBuf); gl.bufferData(gl.ELEMENT_ARRAY_BUFFER,new Uint16Array(sphereIdx),gl.STATIC_DRAW);
     var sphereIdxCount = sphereIdx.length;
 
-    var staticVerts = [];
-    function pushLine(a,b,col){ staticVerts.push(a[0],a[1],a[2],col[0],col[1],col[2],col[3]); staticVerts.push(b[0],b[1],b[2],col[0],col[1],col[2],col[3]); }
-    var gridCol=[1,1,1,0.05];
-    for(var gi=0; gi<=10; gi++){ var t=-1+(gi/10)*2; pushLine([t*halfW*1.15,floorY,-halfD*1.35],[t*halfW*1.15,floorY,halfD*1.35],gridCol); pushLine([-halfW*1.15,floorY,t*halfD*1.35],[halfW*1.15,floorY,t*halfD*1.35],gridCol); }
-    var trussCol=[1,1,1,0.15], legCol=[1,1,1,0.045];
-    var tx=halfW*1.05, tz=halfD*1.05;
-    pushLine([-tx,trussY,-tz],[tx,trussY,-tz],trussCol); pushLine([tx,trussY,-tz],[tx,trussY,tz],trussCol); pushLine([tx,trussY,tz],[-tx,trussY,tz],trussCol); pushLine([-tx,trussY,tz],[-tx,trussY,-tz],trussCol);
-    pushLine([-tx,trussY,-tz],[-tx,floorY,-tz],legCol); pushLine([tx,trussY,-tz],[tx,floorY,-tz],legCol); pushLine([tx,trussY,tz],[tx,floorY,tz],legCol); pushLine([-tx,trussY,tz],[-tx,floorY,tz],legCol);
+    /* line pass: floor grid + truss box, rebuilt whenever the rig reshapes */
+    var lineVS = ['attribute vec3 aPos;','attribute vec4 aCol;','uniform mat4 uProj;','uniform mat4 uView;','varying vec4 vCol;',
+      'void main(){ vCol=aCol; gl_Position=uProj*uView*vec4(aPos,1.0); }'].join('\n');
+    var lineFS = ['precision mediump float;','varying vec4 vCol;','void main(){ gl_FragColor=vCol; }'].join('\n');
+    var lineProg = makeProgram(lineVS, lineFS);
+    var lLoc = { aPos:gl.getAttribLocation(lineProg,'aPos'), aCol:gl.getAttribLocation(lineProg,'aCol'),
+      uProj:gl.getUniformLocation(lineProg,'uProj'), uView:gl.getUniformLocation(lineProg,'uView') };
+    var staticBuf = gl.createBuffer(), staticVertCount = 0, staticDirty = true;
+    function buildStaticGeo(){
+      var v = [];
+      function pushLine(a,b,col){ v.push(a[0],a[1],a[2],col[0],col[1],col[2],col[3]); v.push(b[0],b[1],b[2],col[0],col[1],col[2],col[3]); }
+      var gx = Math.max(halfW*1.2, 3.5), gz = Math.max(halfD*1.5, 3.5);
+      var gridCol=[1,1,1,0.055];
+      for(var gi=0; gi<=12; gi++){
+        var tq=-1+(gi/12)*2;
+        pushLine([tq*gx,floorY,-gz],[tq*gx,floorY,gz],gridCol);
+        pushLine([-gx,floorY,tq*gz],[gx,floorY,tq*gz],gridCol);
+      }
+      var trussCol=[1,1,1,0.16], legCol=[1,1,1,0.05];
+      var tx=halfW*1.05+0.3, tz=halfD*1.05+0.3;
+      pushLine([-tx,trussY,-tz],[tx,trussY,-tz],trussCol); pushLine([tx,trussY,-tz],[tx,trussY,tz],trussCol);
+      pushLine([tx,trussY,tz],[-tx,trussY,tz],trussCol); pushLine([-tx,trussY,tz],[-tx,trussY,-tz],trussCol);
+      pushLine([-tx,trussY,-tz],[-tx,floorY,-tz],legCol); pushLine([tx,trussY,-tz],[tx,floorY,-tz],legCol);
+      pushLine([tx,trussY,tz],[tx,floorY,tz],legCol); pushLine([-tx,trussY,tz],[-tx,floorY,tz],legCol);
+      gl.bindBuffer(gl.ARRAY_BUFFER, staticBuf);
+      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(v), gl.STATIC_DRAW);
+      staticVertCount = v.length/7;
+    }
 
 
     var cam = { target:[0,restY,0], theta:0.7, phi:0.42, distance:11.5, fov:0.9, proj:'perspective' };
@@ -2823,7 +4492,6 @@
            streams — position (slewed), colour and dimmer — come from the
            shared show engine, so wire and screen are 1:1 by construction */
         var frame = engineTick();
-        var idleRig = !cueById(activeAnim.cueIndex); /* no cue at all: rest at 0, output dark */
 
         for(var i=0;i<N;i++){
           var b = fixtureBase[i];
@@ -2833,14 +4501,26 @@
           var fitting = fittingById(wch.fittingId);
           var o = frame[i];
           /* engine position is the slewed DMX value — identical to the wire */
-          var yr = trussY - (o.dmx/255)*LIFT_M;
-          var limited = o.limited;
+          var yr = trussY - dmxToM(o.dmx, modelById(wch.modelId)); /* true world height for this model's cable length */
+          /* over-speed tint is temporally smoothed — the raw per-frame flag
+             flickers when a wave hovers right at the speed limit */
+          fixtureLimitBlend[i] += (((o.limited && !activeAnim.parked) ? 1 : 0) - fixtureLimitBlend[i]) * 0.12;
+          var lb = fixtureLimitBlend[i];
           var rr = o.dim*o.r/255, gg = o.dim*o.g/255, bb = o.dim*o.b/255;
-          /* parked/idle = output off: dark silhouettes, and the recall to
-             the rest position is intended so it is not flagged red */
-          if(activeAnim.parked || idleRig){ rr=gg=bb=0.07; }
-          else if(limited){ rr=rr*0.55+(dangerRgb[0]/255)*0.45; gg=gg*0.55+(dangerRgb[1]/255)*0.45; bb=bb*0.55+(dangerRgb[2]/255)*0.45; }
-          if(activeAnim.parked || idleRig) limited = false;
+          /* a dark fixture renders as a faint silhouette so the hardware
+             stays visible — CROSS-FADED with brightness, never snapped:
+             a hard threshold made dimmer troughs pop grey (looked like
+             strobing) as fixtures crossed it each cycle */
+          var lum3 = rr+gg+bb;
+          if(lum3 < 0.06){
+            var sil = 0.07*(1 - lum3/0.06);
+            rr = Math.max(rr, sil); gg = Math.max(gg, sil); bb = Math.max(bb, sil);
+          }
+          if(lb > 0.02 && lum3 >= 0.06){
+            rr = rr*(1-0.45*lb)+(dangerRgb[0]/255)*0.45*lb;
+            gg = gg*(1-0.45*lb)+(dangerRgb[1]/255)*0.45*lb;
+            bb = bb*(1-0.45*lb)+(dangerRgb[2]/255)*0.45*lb;
+          }
           /* Patch selection reads blue on the fixture body (blue = selection) */
           var isSel = !!selectedPatchIds[wch.id];
           if(isSel && !highlightOn && !activeAnim.parked){ rr=rr*0.55+0.15; gg=gg*0.55+0.25; bb=bb*0.55+0.38; }
@@ -2867,6 +4547,17 @@
           }
         }
 
+        if(staticDirty){ buildStaticGeo(); staticDirty = false; }
+        gl.useProgram(lineProg);
+        gl.uniformMatrix4fv(lLoc.uProj,false,proj); gl.uniformMatrix4fv(lLoc.uView,false,view);
+        gl.bindBuffer(gl.ARRAY_BUFFER, staticBuf);
+        gl.enableVertexAttribArray(lLoc.aPos); gl.vertexAttribPointer(lLoc.aPos,3,gl.FLOAT,false,28,0);
+        gl.enableVertexAttribArray(lLoc.aCol); gl.vertexAttribPointer(lLoc.aCol,4,gl.FLOAT,false,28,12);
+        gl.depthMask(false);
+        gl.drawArrays(gl.LINES, 0, staticVertCount);
+        gl.depthMask(true);
+        gl.disableVertexAttribArray(lLoc.aCol);
+
         gl.useProgram(sphereProg); gl.uniformMatrix4fv(sLoc.uProj,false,proj); gl.uniformMatrix4fv(sLoc.uView,false,view);
         gl.uniform3f(sLoc.uLightDir, lightDir[0], lightDir[1], lightDir[2]);
         gl.uniform3f(sLoc.uEye, eye[0], eye[1], eye[2]);
@@ -2875,24 +4566,30 @@
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, sphereIdxBuf);
         gl.uniform1f(sLoc.uGlow, 0.0);
         for(var s3=0; s3<N; s3++){
+          var bl = 0.3*fixtureColor[s3*3] + 0.6*fixtureColor[s3*3+1] + 0.1*fixtureColor[s3*3+2];
+          gl.uniform1f(sLoc.uEmis, Math.min(1, bl*1.6)); /* lit = emissive body, dark = matte silhouette */
           gl.uniform3f(sLoc.uCenter, fixturePos[s3*3], fixturePos[s3*3+1], fixturePos[s3*3+2]);
           gl.uniform3f(sLoc.uScale, fixtureScale[s3*3], fixtureScale[s3*3+1], fixtureScale[s3*3+2]);
           gl.uniform3f(sLoc.uColor, fixtureColor[s3*3], fixtureColor[s3*3+1], fixtureColor[s3*3+2]);
           gl.drawElements(gl.TRIANGLES, sphereIdxCount, gl.UNSIGNED_SHORT, 0);
         }
-        /* halo pass: additive, no depth writes, brightness-weighted */
+        /* halo pass: additive bloom — no depth READS either: depth-tested
+           halos clip hard against neighbouring balls and those edges
+           flicker as fixtures pass each other */
         gl.depthMask(false);
+        gl.disable(gl.DEPTH_TEST);
         gl.blendFunc(gl.SRC_ALPHA, gl.ONE);
         for(var h3=0; h3<N; h3++){
           var lum = 0.3*fixtureColor[h3*3] + 0.6*fixtureColor[h3*3+1] + 0.1*fixtureColor[h3*3+2];
-          if(lum < 0.05) continue;
+          if(lum < 0.01) continue; /* glow scales with lum, so it FADES out — no pop at a threshold */
           gl.uniform3f(sLoc.uCenter, fixturePos[h3*3], fixturePos[h3*3+1], fixturePos[h3*3+2]);
-          gl.uniform3f(sLoc.uScale, fixtureScale[h3*3]*1.55+0.05, fixtureScale[h3*3+1]*1.35+0.05, fixtureScale[h3*3+2]*1.55+0.05);
+          gl.uniform3f(sLoc.uScale, fixtureScale[h3*3]*1.8+0.05, fixtureScale[h3*3+1]*1.55+0.05, fixtureScale[h3*3+2]*1.8+0.05);
           gl.uniform3f(sLoc.uColor, fixtureColor[h3*3], fixtureColor[h3*3+1], fixtureColor[h3*3+2]);
-          gl.uniform1f(sLoc.uGlow, 0.26*lum);
+          gl.uniform1f(sLoc.uGlow, 0.38*lum);
           gl.drawElements(gl.TRIANGLES, sphereIdxCount, gl.UNSIGNED_SHORT, 0);
         }
         gl.depthMask(true);
+        gl.enable(gl.DEPTH_TEST);
         gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
       }
       requestAnimationFrame(render);
@@ -2903,7 +4600,7 @@
   /* ==========================================================================
      INIT
      ========================================================================== */
-  renderCatTabs();
+  renderPageTabs();
   renderCueGrid();
   renderPresetGrid();
   renderEditor();
@@ -2916,6 +4613,9 @@
   renderSystemState();
   wireSettingsPage();
   wireLayoutPage();
+  wireGroupsPage();
+  wireWindowLayouts();
+  wireDockSplitters();
   pushNetworkSettings();
   logLine('BLK Motion ready — show empty, all axes at 0, playbacks stopped', 'ok');
 
@@ -2960,40 +4660,9 @@
         if(!universes[uni]) universes[uni] = new Uint8Array(512);
         var buf = universes[uni], base = ch-1;
 
-        /* ---- write the fixture's real personality (ES-L29 channel charts) ---- */
-        var posF = Math.max(0, Math.min(255, o.dmx));
-        var pos8 = Math.floor(posF);
-        var posFine = Math.round((posF-pos8)*255);       /* 16-bit fine for 6/10CH */
-        /* hardware speed channel is inverted: 0 = fast, 255 = slow */
-        var speedByte = Math.round((1 - Math.max(0, Math.min(1, w.maxSpeed/(wModel.maxSpeedCmS||75))))*255);
-        var r = Math.round(o.r);
-        var g = Math.round(o.g);
-        var b = Math.round(o.b);
-        var dim = o.dim;
-        var dimByte = Math.round(dim*255);
-        var dmxMode = wModel.dmxMode || '6';
-        if(dmxMode==='5'){
-          /* Motor8 · Speed · R · G · B — no dimmer channel, fold it into RGB */
-          buf[base]=pos8; buf[base+1]=speedByte;
-          buf[base+2]=Math.round(r*dim); buf[base+3]=Math.round(g*dim); buf[base+4]=Math.round(b*dim);
-        } else if(dmxMode==='9'){
-          /* Motor8 · Speed · Dimmer · Strobe · R · G · B · Macro · Control */
-          buf[base]=pos8; buf[base+1]=speedByte; buf[base+2]=dimByte;
-          buf[base+3]=0;                                  /* strobe: open */
-          buf[base+4]=r; buf[base+5]=g; buf[base+6]=b;
-          buf[base+7]=0;                                  /* colour macro: none */
-          buf[base+8]=0;                                  /* control: 246–250 held 5 s resets the winch — never driven */
-        } else if(dmxMode==='10'){
-          /* Motor8 · Fine16 · Speed · Dimmer · Strobe · R · G · B · Macro · Control */
-          buf[base]=pos8; buf[base+1]=posFine; buf[base+2]=speedByte; buf[base+3]=dimByte;
-          buf[base+4]=0;
-          buf[base+5]=r; buf[base+6]=g; buf[base+7]=b;
-          buf[base+8]=0; buf[base+9]=0;
-        } else {
-          /* 6CH (default): Motor8 · Fine16 · Speed · R · G · B — dimmer folded into RGB */
-          buf[base]=pos8; buf[base+1]=posFine; buf[base+2]=speedByte;
-          buf[base+3]=Math.round(r*dim); buf[base+4]=Math.round(g*dim); buf[base+5]=Math.round(b*dim);
-        }
+        /* one mapper shared with the Test view's readout — see personalityBytes */
+        var bytes = personalityBytes(w, o);
+        for(var s=0; s<bytes.length; s++){ buf[base+s] = Math.max(0, Math.min(255, bytes[s][1])); }
       }
       return universes;
     }
@@ -3088,8 +4757,10 @@
     /* Show save/load via the native File menu */
     function showJson(){
       return JSON.stringify({
-        version: 2, app: 'BLK Motion',
-        cues: cues, presets: presets, winchData: winchData,
+        version: 3, app: 'BLK Motion', /* v3: phase stored in degrees */
+        cues: cues, presets: presets, winchData: winchData, pages: pages,
+        groups: groups, tracks: TRACKS, blocks: blocks, tlBpm: tlBpm, cueMode: cueMode,
+        timelineTotal: timelineTotal, tlAudio: tlAudio, tlLoop: tlLoop,
         models: WINCH_MODELS, fittings: FITTINGS, layout: layout,
         selectedCueId: selectedCueId, triggerMode: triggerMode
       }, null, 2);
@@ -3105,12 +4776,58 @@
       });
       cues.forEach(function(cq){ applyDist(cq.motion); applyDist(cq.dimmer); applyDist(cq.colour); });
       presets.forEach(function(p){ applyDist(p.motion); applyDist(p.dimmer); applyDist(p.colour); });
+      if((d.version||2) < 3){
+        /* v2 shows stored phase as 0–100 % — convert to degrees */
+        function degPhase(o){ ['motion','dimmer','colour'].forEach(function(k){ if(o[k] && typeof o[k].phase==='number') o[k].phase = Math.round(o[k].phase*3.6); }); }
+        cues.forEach(degPhase); presets.forEach(degPhase);
+        if(Array.isArray(d.blocks)) d.blocks.forEach(function(b){ if(b.custom) degPhase(b.custom); });
+      }
       if(d.layout){
         ['cols','pitchX','pitchZ','trussH'].forEach(function(k){ if(typeof d.layout[k]==='number') layout[k] = d.layout[k]; });
       }
       refreshLayoutInputs(); applyLayout();
       if(typeof d.selectedCueId === 'number' && cueById(d.selectedCueId)) selectedCueId = d.selectedCueId;
-      renderCatTabs(); renderCueGrid(); renderPresetGrid(); renderEditor();
+      if(Array.isArray(d.pages) && d.pages.length){ pages.length = 0; d.pages.forEach(function(pg){ pages.push(pg); }); }
+      if(Array.isArray(d.groups)){ groups.length = 0; d.groups.forEach(function(g){ groups.push(g); }); }
+      if(Array.isArray(d.tracks) && d.tracks.length){
+        TRACKS.length = 0;
+        d.tracks.forEach(function(tr){ if(!tr.filter) tr.filter = { motion:true, dimmer:true, colour:true }; TRACKS.push(tr); });
+      }
+      if(Array.isArray(d.blocks)){
+        blocks.length = 0;
+        d.blocks.forEach(function(b){
+          if(b.custom){ applyDist(b.custom.motion); applyDist(b.custom.dimmer); applyDist(b.custom.colour); }
+          blocks.push(b);
+        });
+      }
+      editingBlockId = null;
+      /* decode any bitmaps referenced by the loaded show */
+      function cacheParamBitmaps(o){
+        ['motion','dimmer','colour'].forEach(function(k){
+          var pb2 = o && o[k];
+          if(pb2 && pb2.bitmap && pb2.bitmap.src) ensureBitmapCache(pb2.bitmap.src);
+        });
+      }
+      cues.forEach(cacheParamBitmaps);
+      presets.forEach(cacheParamBitmaps);
+      blocks.forEach(function(b){ if(b.custom) cacheParamBitmaps(b.custom); });
+      if(typeof d.tlBpm==='number'){ tlBpm = d.tlBpm; var bi2 = document.getElementById('tlBpmInp'); if(bi2) bi2.value = tlBpm; }
+      if(d.cueMode==='single' || d.cueMode==='multi'){ cueMode = d.cueMode; setCueStackSeg(cueMode); }
+      if(typeof d.timelineTotal==='number'){
+        timelineTotal = Math.max(8, Math.min(3600, d.timelineTotal));
+        var li2 = document.getElementById('tlLenInp'); if(li2) li2.value = fmtTimecode(timelineTotal);
+        document.getElementById('tlTimeTotal').textContent = fmtTlTime(timelineTotal);
+      }
+      if(typeof d.tlLoop==='boolean'){
+        tlLoop = d.tlLoop;
+        var lb2 = document.getElementById('tlLoopBtn');
+        if(lb2){ lb2.textContent = tlLoop ? 'Loop' : 'Once'; lb2.classList.toggle('on', !tlLoop); }
+      }
+      if(d.tlAudio && d.tlAudio.src) loadTlAudio(d.tlAudio.src, d.tlAudio.name);
+      else drawAudioLane();
+      renderTrackHeaders(); renderRuler(); renderTrackLanes(); renderGroupList(); drawGroupsPlan();
+      if(!pages.find(function(pg){ return pg.id===currentPageId; })) currentPageId = pages[0].id;
+      renderPageTabs(); renderCueGrid(); renderPresetGrid(); renderEditor();
       renderModelsTable(); renderFittingsTable(); renderPatchRows(); renderPatchSummary(); renderPatchNote();
       if(!winchById(selectedWinch)) selectedWinch = winchData.length ? winchData[0].id : null;
       renderZoneList(); renderZoneInfo(); renderViewportHud(); renderSystemState(); updateSelCount();
