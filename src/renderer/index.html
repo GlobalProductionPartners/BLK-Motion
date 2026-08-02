@@ -1139,6 +1139,11 @@
     <div class="set-rows compact" style="margin-top:12px;">
       <div class="set-row"><label>MVR positions</label><input type="checkbox" id="mvrUsePos" checked><span class="unit">hang the rig exactly as the MVR places it (switches Layout to Custom)</span></div>
       <div class="set-row"><label>MVR heights</label><input type="checkbox" id="mvrUseHeight" checked><span class="unit">truss height and per-fixture start heights from the MVR Z</span></div>
+      <div class="set-row"><label>Numbering</label><select id="mvrNumbering">
+          <option value="mvr">MVR fixture ID</option>
+          <option value="pos">By position — rows, left to right</option>
+          <option value="file">File order</option>
+        </select><span class="unit" id="mvrNumberingNote"></span></div>
       <div class="set-row"><label>Replace patch</label><input type="checkbox" id="mvrReplace"><span class="unit">off — add to the existing patch</span></div>
     </div>
     <div class="modal-btns">
@@ -4830,11 +4835,19 @@
     }
     var gdtf = (mvrText(el,'GDTFSpec') || 'Unknown').replace(/\.gdtf$/i,'');
     var mode = mvrText(el,'GDTFMode');
+    /* the designer's fixture number — this is what appears on their plan and
+       on the console, so it wins over our import order when present */
+    var fid = parseInt(mvrText(el,'FixtureID'), 10);
+    if(!isFinite(fid) || fid < 1) fid = parseInt(mvrText(el,'UnitNumber'), 10);
+    if(!isFinite(fid) || fid < 1) fid = null;
     return {
       name: el.getAttribute('name') || mvrText(el,'Name') || 'Fixture',
       typeKey: gdtf + (mode ? ' · ' + mode : ''),
+      fid: fid,
       universe: universe, channel: channel,
-      x: pos[0]/1000, y: pos[1]/1000, z: pos[2]/1000
+      /* MVR is Z-up with +Y upstage; our plan draws depth downward from
+         "front of stage", so depth = -Y or the rig imports mirrored */
+      x: pos[0]/1000, depth: -pos[1]/1000, z: pos[2]/1000
     };
   }
   function mvrCollect(el, parentM, out){
@@ -4865,6 +4878,14 @@
     document.getElementById('mvrFileName').textContent = fileName;
     var zs = fixtures.map(function(f){ return f.z; });
     var hi = Math.max.apply(null, zs), lo = Math.min.apply(null, zs);
+    var withFid = fixtures.filter(function(f){ return f.fid!==null; }).length;
+    var numSel = document.getElementById('mvrNumbering');
+    var mvrOpt = numSel.querySelector('option[value="mvr"]');
+    mvrOpt.disabled = !withFid;
+    numSel.value = withFid ? 'mvr' : 'pos';
+    document.getElementById('mvrNumberingNote').textContent = withFid
+      ? 'this file carries fixture IDs — they become the patch numbers'
+      : 'this file has no fixture IDs';
     var noAddr = fixtures.filter(function(f){ return f.universe===null; }).length;
     document.getElementById('mvrSummary').textContent =
       fixtures.length+' fixture'+(fixtures.length>1?'s':'')+' in '+keys.length+' type'+(keys.length>1?'s':'')+
@@ -4927,7 +4948,40 @@
       var maxZ = chosen.reduce(function(m,f){ return Math.max(m, f.z); }, 0);
       if(isFinite(maxZ) && maxZ > 1) layout.trussH = Math.max(1, Math.min(30, Math.round(maxZ*100)/100));
     }
-    var nextId = winchData.reduce(function(m,w){ return Math.max(m, w.id); }, 0);
+    /* order the import: the designer's fixture IDs, else physical position
+       (depth bands back-to-front, left to right inside each), else file order */
+    var mode = document.getElementById('mvrNumbering').value;
+    if(mode==='mvr' && chosen.some(function(f){ return f.fid!==null; })){
+      chosen = chosen.slice().sort(function(a,b){
+        if(a.fid===null) return 1;
+        if(b.fid===null) return -1;
+        return a.fid - b.fid;
+      });
+    } else if(mode==='pos'){
+      var byDepth = chosen.slice().sort(function(a,b){ return a.depth - b.depth; });
+      var bands = [], cur = [byDepth[0]];
+      for(var bi=1; bi<byDepth.length; bi++){
+        /* a straight row is one band; a diagonal chains into one too */
+        if(Math.abs(byDepth[bi].depth - cur[cur.length-1].depth) < 0.6) cur.push(byDepth[bi]);
+        else { bands.push(cur); cur = [byDepth[bi]]; }
+      }
+      bands.push(cur);
+      chosen = [];
+      bands.forEach(function(b){
+        b.sort(function(p,q){ return p.x - q.x || p.depth - q.depth; });
+        b.forEach(function(p){ chosen.push(p); });
+      });
+    }
+    /* prefer the MVR's own fixture number as the patch ID when it is free */
+    var usedIds = {};
+    winchData.forEach(function(w){ usedIds[w.id] = true; });
+    function claimId(pref){
+      if(mode==='mvr' && pref && pref>0 && !usedIds[pref]){ usedIds[pref] = true; return pref; }
+      var n = 1;
+      while(usedIds[n]) n++;
+      usedIds[n] = true;
+      return n;
+    }
     /* fixtures the MVR left unaddressed get patched sequentially, stepping by
        each model's real DMX footprint, starting after the existing rig */
     var autoU = null, autoC = null;
@@ -4947,17 +5001,18 @@
     chosen.forEach(function(f){
       var pick = picks[f.typeKey];
       var model = modelById(pick.modelId) || WINCH_MODELS[0];
+      var wid = claimId(f.fid);
       var nm = f.name;
-      if(nameTotal[nm] > 1){ nameSeq[nm] = (nameSeq[nm]||0)+1; nm = nm+' '+pad(nameSeq[nm]); }
+      if(nameTotal[nm] > 1) nm = nm+' '+pad(mode==='mvr' && f.fid ? f.fid : (nameSeq[nm] = (nameSeq[nm]||0)+1));
       var w = {
-        id: ++nextId, name: nm, type:'Variable',
+        id: wid, name: nm, type:'Variable',
         modelId: model.id, fittingId: pick.fittingId,
         maxSpeed: Math.min(DEFAULT_SPEED_CMS, model.maxSpeedCmS),
         blkAddr: f.universe!==null ? (f.universe+'.'+f.channel) : autoAddr(model),
         protocol:'Art-Net',
         pos:0, topLimit:0, bottomLimit:255, loadKg:null, status:'on'
       };
-      if(usePos){ w.lx = Math.round(f.x*1000)/1000; w.lz = Math.round(f.y*1000)/1000; }
+      if(usePos){ w.lx = Math.round(f.x*1000)/1000; w.lz = Math.round(f.depth*1000)/1000; }
       if(useHeight){
         /* the MVR hangs this unit below the truss — that drop IS its rest
            position, expressed in this model's DMX travel */
