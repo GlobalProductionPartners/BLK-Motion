@@ -824,7 +824,7 @@
                   <button data-laymode="grid" class="active" title="Fixtures fill a regular grid in patch order">Grid</button>
                   <button data-laymode="custom" title="Free positioning — drag fixtures, or arrange a selection on a line, circle or curve">Custom</button>
                 </div>
-                <button class="flat-btn" id="layClearBtn" style="color:var(--yellow);" title="Full reset: back to Grid mode, custom positions wiped, start heights back to top limits (undoable)">Clear Layout</button>
+                <button class="flat-btn" id="layClearBtn" style="color:var(--yellow);" title="Empty the rig: removes every fixture from the patch (safety-stops first if running) — one undo brings them all back">Clear Layout</button>
               </div>
               <div class="set-rows compact" id="layGridRows">
                 <div class="set-row"><label>Columns</label><input type="number" min="1" max="48" data-layout="cols"><span class="unit">wrap width</span></div>
@@ -3625,13 +3625,18 @@
     renderLayListRef = renderLayList;
     document.getElementById('layClearBtn').addEventListener('click', function(){
       resolvePending(false);
-      pushUndo('clear layout');
-      winchData.forEach(function(w2){ delete w2.lx; delete w2.lz; delete w2.homePos; });
+      if(!winchData.length){ logLine('Layout is already empty'); return; }
+      /* clearing the layout EMPTIES THE RIG — same path as removing every
+         fixture in Patch (safety stop included), one undo brings it all back */
+      var n2 = winchData.length;
+      selectedPatchIds = {};
+      winchData.forEach(function(w2){ selectedPatchIds[w2.id] = true; });
+      removeSelectedFixtures();
       laySel = {}; layAnchor = null;
       layout.mode = 'grid';
       if(refreshLayoutMode) refreshLayoutMode();
       applyLayout();
-      logLine('Layout cleared — back to the grid, start heights at top limits (undo restores everything)');
+      logLine('Layout cleared — all '+n2+' fixtures removed (undo restores them)','warn');
     });
     /* shift-click must range-select, never start a native text selection */
     document.getElementById('layFixList').addEventListener('mousedown', function(e){ e.preventDefault(); });
