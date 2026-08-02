@@ -298,6 +298,22 @@
 
   /* ---- Buttons ---- */
   .flat-btn{ background:var(--surface-2); color:var(--text-2); font-size:11.5px; padding:7px 14px; }
+
+  /* activation gate */
+  #licenseGate{ position:fixed; inset:0; z-index:3000; background:rgba(8,8,9,.96); display:flex; align-items:center; justify-content:center; }
+  #licenseGate[hidden]{ display:none; }
+  .lg-card{ width:380px; background:var(--surface); padding:34px 36px; display:flex; flex-direction:column; gap:12px; border:1px solid var(--hairline); }
+  .lg-brand{ font-family:var(--display); font-size:19px; letter-spacing:.1em; }
+  .lg-brand span{ color:var(--text-2); }
+  .lg-title{ font-size:12px; text-transform:uppercase; letter-spacing:.09em; color:var(--text-3); }
+  .lg-note{ font-size:11.5px; color:var(--text-2); line-height:1.5; margin:0; }
+  #lgKeyInp{ background:var(--recess); border:1px solid var(--hairline); color:var(--text); font-family:var(--mono); font-size:13px; padding:10px 12px; text-transform:uppercase; }
+  #lgActivateBtn{ background:var(--text); color:#000; font-weight:600; font-size:12px; padding:11px; text-transform:uppercase; letter-spacing:.06em; }
+  #lgActivateBtn:disabled{ opacity:.5; }
+  .lg-msg{ font-size:11px; color:var(--red); min-height:14px; }
+  .lg-msg.ok{ color:var(--green); }
+  .lg-machine{ font-size:10px; color:var(--text-3); }
+  .lg-machine .mono{ user-select:text; }
   .flat-btn:hover{ background:var(--surface-3); color:var(--text); }
   .flat-btn.go{ background:var(--text); color:#000; font-weight:600; }
   .flat-btn.go:hover{ background:#fff; }
@@ -873,6 +889,18 @@
             </div>
 
             <div class="lib-section">
+              <div class="section-head">License</div>
+              <p class="lib-note">Hardware-locked: activation needs the internet once per machine, then the license lives in a signed local file and the app runs fully offline — including on isolated show networks.</p>
+              <div class="set-rows">
+                <div class="set-row"><label>Status</label><b id="licStatus" style="font-size:11.5px;">—</b></div>
+                <div class="set-row"><label>Machine ID</label><span class="mono" id="licMachine" style="font-size:11px; user-select:text;">—</span><span class="unit">read this to support when asked</span></div>
+                <div class="set-row"><label>License key</label><input type="text" id="licKeyInp" placeholder="BLKM-XXXX-XXXX-XXXX-XXXX" spellcheck="false" style="width:240px; font-family:var(--mono);"><button class="flat-btn" id="licActivateBtn">Activate</button><button class="flat-btn" id="licDeactivateBtn" style="display:none;">Deactivate this machine</button></div>
+                <div class="set-row"><label>Server</label><input type="text" data-set="licenseServer" placeholder="default"><span class="unit">leave blank unless support says otherwise</span></div>
+                <div class="set-row"><label></label><span id="licMsg" style="font-size:11px; color:var(--text-3);"></span></div>
+              </div>
+            </div>
+
+            <div class="lib-section">
               <div class="section-head">Network Interfaces</div>
               <div class="set-rows">
                 <div class="set-row"><button class="flat-btn" id="netRefreshBtn">Refresh</button><span class="unit">IPv4 interfaces the protocols can reach the rig through</span></div>
@@ -974,6 +1002,20 @@
 <input type="file" id="tlAudioInp" accept="audio/*" hidden>
 <div class="ctx-menu" id="tlCtxMenu" hidden></div>
 <div id="snapHint" hidden></div>
+
+<!-- Activation gate — shown only in PACKAGED builds with no valid license.
+     Dev runs (npm start) are never blocked. -->
+<div id="licenseGate" hidden>
+  <div class="lg-card">
+    <div class="lg-brand">BLK <span>MOTION</span></div>
+    <div class="lg-title">Activation required</div>
+    <p class="lg-note">Enter your license key. This machine needs the internet once — after activation BLK Motion runs fully offline.</p>
+    <input type="text" id="lgKeyInp" placeholder="BLKM-XXXX-XXXX-XXXX-XXXX" spellcheck="false" autocomplete="off">
+    <button id="lgActivateBtn">Activate</button>
+    <div class="lg-msg" id="lgMsg"></div>
+    <div class="lg-machine">Machine ID <span class="mono" id="lgMachine">—</span></div>
+  </div>
+</div>
 
 <div class="statuslog">
   <div class="sl-head">
@@ -1300,7 +1342,8 @@
     sacnEnabled:true, sacnSourceName:'BLK Motion', sacnPriority:100,
     outputRateHz:25,
     oscEnabled:true, oscPort:8000,
-    usbEnabled:false, usbDevice:'', usbMode:'pro', usbUniverse:2
+    usbEnabled:false, usbDevice:'', usbMode:'pro', usbUniverse:2,
+    licenseServer:''
   };
   var settings = (function(){
     try { return Object.assign({}, SETTINGS_DEFAULTS, JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}')); }
@@ -5174,6 +5217,69 @@
         catch(err){ logLine('Could not load show: '+err.message, 'warn'); }
       });
     });
+
+    /* ---------- licensing: status display, activation, packaged-build gate ---------- */
+    (function(){
+      if(!window.blk.license) return;
+      var gate = document.getElementById('licenseGate');
+      function maskKey(k){ return k ? k.slice(0,9)+'····'+k.slice(-4) : ''; }
+      function applyStatus(st){
+        document.getElementById('licMachine').textContent = st.machineId;
+        document.getElementById('lgMachine').textContent = st.machineId;
+        var el = document.getElementById('licStatus');
+        var keyRowVisible = !st.licensed;
+        if(st.licensed){
+          el.textContent = 'Licensed to '+st.customer+' · '+maskKey(st.key)+(st.seats>1?' · '+st.seats+' seats':'');
+          el.style.color = 'var(--green)';
+        } else {
+          el.textContent = st.error ? 'Unlicensed — '+st.error : 'Unlicensed';
+          el.style.color = st.error ? 'var(--red)' : 'var(--text-2)';
+        }
+        document.getElementById('licKeyInp').style.display = keyRowVisible ? '' : 'none';
+        document.getElementById('licActivateBtn').style.display = keyRowVisible ? '' : 'none';
+        document.getElementById('licDeactivateBtn').style.display = st.licensed ? '' : 'none';
+        /* the gate only ever blocks packaged builds */
+        gate.hidden = !(st.enforced && !st.licensed);
+      }
+      function doActivate(key, msgEl, btn){
+        if(!key || !key.trim()){ msgEl.textContent = 'Enter a license key'; msgEl.classList.remove('ok'); return; }
+        btn.disabled = true;
+        msgEl.textContent = 'Contacting license server…'; msgEl.classList.remove('ok');
+        window.blk.license.activate(settings.licenseServer || '', key).then(function(res){
+          btn.disabled = false;
+          if(res && res.ok){
+            msgEl.textContent = 'Activated — this machine now runs offline.'; msgEl.classList.add('ok');
+            applyStatus(res.status);
+            logLine('License activated: '+res.status.customer+' ('+maskKey(res.status.key)+')', 'ok');
+          } else {
+            msgEl.textContent = (res && res.error) || 'Activation failed';
+          }
+        });
+      }
+      document.getElementById('licActivateBtn').addEventListener('click', function(){
+        doActivate(document.getElementById('licKeyInp').value, document.getElementById('licMsg'), this);
+      });
+      document.getElementById('lgActivateBtn').addEventListener('click', function(){
+        doActivate(document.getElementById('lgKeyInp').value, document.getElementById('lgMsg'), this);
+      });
+      document.getElementById('lgKeyInp').addEventListener('keydown', function(ev){
+        if(ev.code==='Enter') document.getElementById('lgActivateBtn').click();
+      });
+      document.getElementById('licDeactivateBtn').addEventListener('click', function(){
+        var msgEl = document.getElementById('licMsg');
+        msgEl.textContent = 'Releasing this machine\u2019s seat\u2026'; msgEl.classList.remove('ok');
+        window.blk.license.deactivate(settings.licenseServer || '').then(function(res){
+          if(res && res.ok){
+            msgEl.textContent = 'Deactivated — the seat is free for another machine.'; msgEl.classList.add('ok');
+            applyStatus(res.status);
+            logLine('License deactivated — seat released');
+          } else {
+            msgEl.textContent = (res && res.error) || 'Deactivation failed';
+          }
+        });
+      });
+      window.blk.license.status().then(applyStatus);
+    })();
 
     logLine('Output engine live — Art-Net + sACN @ '+(settings.outputRateHz||25)+' Hz, ES-L29 personalities (5/6/9/10CH)'+(settings.oscEnabled?', OSC remote on :'+settings.oscPort:''), 'ok');
   })();

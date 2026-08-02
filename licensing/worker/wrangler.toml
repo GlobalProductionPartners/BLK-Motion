@@ -1,0 +1,9 @@
+name = "blk-motion-license"
+main = "worker.js"
+compatibility_date = "2026-07-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "blk-motion-license"
+# database_id is filled in after `wrangler d1 create blk-motion-license`
+database_id = "REPLACE-ME"

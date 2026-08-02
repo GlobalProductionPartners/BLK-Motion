@@ -7,6 +7,7 @@ const ArtNet = require('../protocols/artnet');
 const SACN = require('../protocols/sacn');
 const OSC = require('../protocols/osc');
 const UsbDmx = require('../protocols/usbdmx');
+const license = require('./license');
 
 let mainWindow = null;
 let artnet = null;
@@ -301,6 +302,12 @@ ipcMain.handle('net:interfaces', () => {
   });
   return out;
 });
+
+/* ---------- IPC: licensing (hardware-locked, offline after activation) ---------- */
+
+ipcMain.handle('license:status', () => license.status());
+ipcMain.handle('license:activate', (_event, { serverUrl, key }) => license.activate(serverUrl, key));
+ipcMain.handle('license:deactivate', (_event, { serverUrl }) => license.deactivate(serverUrl));
 
 /* ---------- IPC: show file save/load ---------- */
 

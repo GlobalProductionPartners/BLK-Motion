@@ -4,3 +4,6 @@ build/*.png
 build/*.iconset/
 .DS_Store
 *.log
+
+# licensing private key — never commit
+licensing/signing-key.b64

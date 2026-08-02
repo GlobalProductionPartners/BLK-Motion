@@ -37,5 +37,10 @@ contextBridge.exposeInMainWorld('blk', {
     onMenuSaveAs: (cb) => ipcRenderer.on('menu:save-show-as', () => cb()),
     onMenuOpen: (cb) => ipcRenderer.on('menu:open-show', () => cb())
   },
+  license: {
+    status: () => ipcRenderer.invoke('license:status'),
+    activate: (serverUrl, key) => ipcRenderer.invoke('license:activate', { serverUrl, key }),
+    deactivate: (serverUrl) => ipcRenderer.invoke('license:deactivate', { serverUrl })
+  },
   platform: process.platform
 });
