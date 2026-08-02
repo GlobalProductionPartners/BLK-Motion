@@ -317,6 +317,14 @@
   .mvr-modal .set-row label{ flex:0 0 120px; }
   .mvr-modal .set-row .unit{ flex:1 1 auto; }
   .mvr-modal .modal-btns{ margin-top:16px; }
+  .plan-legend{ flex:0 0 auto; display:flex; align-items:center; gap:14px; flex-wrap:wrap; padding-top:8px; font-size:10.5px; color:var(--text-3); }
+  .plan-legend span{ display:inline-flex; align-items:center; gap:5px; }
+  .plan-legend .lgd{ width:8px; height:8px; border-radius:50%; flex:0 0 auto; }
+  .plan-legend .lgd.rest{ background:rgba(196,196,190,.75); }
+  .plan-legend .lgd.start{ background:rgba(240,196,90,.9); }
+  .plan-legend .lgd.fault{ background:rgba(216,74,56,.85); }
+  .plan-legend .lgd.sel{ background:transparent; box-shadow:0 0 0 1.5px rgba(85,144,217,.95); }
+  .plan-legend .lgd-note{ color:var(--text-3); opacity:.75; }
   .mvr-table-wrap{ max-height:300px; overflow:auto; border:1px solid var(--hairline); background:var(--recess); }
   table.mvr-map{ width:100%; border-collapse:collapse; }
   table.mvr-map th{ position:sticky; top:0; z-index:1; background:var(--surface-2); text-align:left; font-size:10px; text-transform:uppercase; letter-spacing:.06em; color:var(--text-3); padding:7px 10px; }
@@ -919,6 +927,13 @@
             <div style="flex:1 1 auto; min-width:0; padding:14px 16px; display:flex; flex-direction:column;">
               <div class="section-head">Plan view — top down</div>
               <canvas id="layoutPlan" style="flex:1 1 auto; min-height:0; width:100%;"></canvas>
+              <div class="plan-legend">
+                <span><i class="lgd rest"></i>rests at top limit</span>
+                <span><i class="lgd start"></i>start height set</span>
+                <span><i class="lgd fault"></i>offline</span>
+                <span><i class="lgd sel"></i>selected</span>
+                <span class="lgd-note">fixtures in the roadcase are not shown</span>
+              </div>
             </div>
           </div>
           <div class="panel-resize-handle"></div>
