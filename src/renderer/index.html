@@ -298,6 +298,14 @@
 
   .lay-tool.on{ background:var(--text); color:#000; font-weight:600; }
   #layModeSeg{ display:inline-flex; } /* shrink-wrap so the thumb tracks the buttons */
+  #layShapeConfirm{ display:none; }
+  #layShapeConfirm.on{ display:flex !important; }
+  #layFixList{ max-height:190px; overflow-y:auto; border:1px solid var(--hairline); background:var(--recess); }
+  .layfix-row{ display:flex; align-items:center; gap:7px; padding:3px 9px; font-size:10.5px; font-family:var(--mono); color:var(--text-2); }
+  .layfix-row:hover{ background:var(--surface-2); }
+  .layfix-row .lf-chk{ width:9px; height:9px; border:1px solid var(--text-3); flex:0 0 auto; }
+  .layfix-row.sel{ color:var(--text); }
+  .layfix-row.sel .lf-chk{ background:var(--blue); border-color:var(--blue); }
 
   /* settings tabs */
   .set-tabs{ display:flex; gap:2px; padding:8px 20px 0; flex:0 0 auto; background:var(--surface); }
@@ -839,7 +847,16 @@
                   <button class="flat-btn" id="laySelNoneBtn">Clear</button>
                   <button class="flat-btn" id="laySeedBtn" title="Copy the current grid slots into the custom positions">Seed from Grid</button>
                 </div>
-                <p class="lib-note" style="margin-top:8px;">Arrange tools move the <b>selection</b> in patch order (or every fixture when fewer than 2 are selected). Effects still read direction spatially — left→right follows real X.</p>
+                <div id="layShapeConfirm" style="display:none; gap:4px; margin-top:8px;">
+                  <button class="flat-btn go" id="layShapeOkBtn" title="Keep this arrangement (Enter)">Confirm Shape</button>
+                  <button class="flat-btn" id="layShapeCancelBtn" title="Put the fixtures back (Esc)">Cancel</button>
+                </div>
+                <p class="lib-note" style="margin-top:8px;">Arrange tools move the <b>selection</b> in patch order (or every fixture when fewer than 2 are selected). After drawing, drag the square handles to resize or move the shape, then Confirm. Effects still read direction spatially — left→right follows real X.</p>
+              </div>
+              <div style="margin-top:14px;">
+                <div class="section-head">Fixtures</div>
+                <div id="layFixList"></div>
+                <p class="lib-note" style="margin-top:6px;">Click toggles · shift-click selects the range · the arrange tools use this selection</p>
               </div>
               <div style="margin-top:14px;">
                 <div class="section-head">Start Height</div>
@@ -3134,7 +3151,9 @@
   var laySel = {};            /* selected winch ids on the plan */
   var layAnchor = null;       /* last plainly-clicked id — shift-click ranges from here */
   var layTool = 'select';
-  var layDrag = null;         /* {kind:'move'|'band'|'shape', view, ...} */
+  var layDrag = null;         /* {kind:'move'|'band'|'shape'|'handle', view, ...} */
+  var layPending = null;      /* placed shape awaiting confirm — {tool,x0,z0,x1,z1,idxs,orig} */
+  var renderLayListRef = null; /* assigned by wireLayoutPage */
   function laySelCount(){ return Object.keys(laySel).length; }
   function laySelIndices(){
     var out = [];
@@ -3197,19 +3216,29 @@
       ctx.fill();
       if(showIds){ ctx.fillStyle='rgba(156,156,152,.65)'; ctx.fillText(String(wch.id), pt.x+r+3, pt.y+3); }
     }
-    /* live preview of the shape or band being dragged */
-    if(layDrag && layDrag.kind==='shape'){
-      var a = planToPx(v, {x:layDrag.x0, z:layDrag.z0}), b2 = planToPx(v, {x:layDrag.x1, z:layDrag.z1});
+    /* live preview of the shape being dragged or awaiting confirmation */
+    var shp = layPending || (layDrag && layDrag.kind==='shape' ? layDrag : null);
+    if(shp){
+      var a = planToPx(v, {x:shp.x0, z:shp.z0}), b2 = planToPx(v, {x:shp.x1, z:shp.z1});
       ctx.strokeStyle='rgba(85,144,217,.8)'; ctx.lineWidth=1.4; ctx.setLineDash([5,4]);
       ctx.beginPath();
-      if(layDrag.tool==='line'){ ctx.moveTo(a.x,a.y); ctx.lineTo(b2.x,b2.y); }
-      else if(layDrag.tool==='circle'){ ctx.arc(a.x, a.y, Math.hypot(b2.x-a.x, b2.y-a.y), 0, Math.PI*2); }
-      else if(layDrag.tool==='curve'){
-        var cpt = curveCtrl({x:layDrag.x0,z:layDrag.z0},{x:layDrag.x1,z:layDrag.z1});
+      if(shp.tool==='line'){ ctx.moveTo(a.x,a.y); ctx.lineTo(b2.x,b2.y); }
+      else if(shp.tool==='circle'){ ctx.arc(a.x, a.y, Math.hypot(b2.x-a.x, b2.y-a.y), 0, Math.PI*2); }
+      else if(shp.tool==='curve'){
+        var cpt = curveCtrl({x:shp.x0,z:shp.z0},{x:shp.x1,z:shp.z1});
         var cpx = planToPx(v, cpt);
         ctx.moveTo(a.x,a.y); ctx.quadraticCurveTo(cpx.x, cpx.y, b2.x, b2.y);
       }
       ctx.stroke(); ctx.setLineDash([]);
+      if(layPending){
+        [a, b2].forEach(function(hp){
+          ctx.fillStyle='rgba(85,144,217,1)';
+          ctx.fillRect(hp.x-5, hp.y-5, 10, 10);
+          ctx.strokeStyle='rgba(255,255,255,.85)'; ctx.lineWidth=1; ctx.strokeRect(hp.x-5, hp.y-5, 10, 10);
+        });
+        ctx.fillStyle='rgba(240,196,90,.95)'; ctx.font='10.5px ui-monospace,monospace';
+        ctx.fillText('drag handles to resize · path to move · Enter confirms · Esc cancels', v.ox-10, v.oy+ (v.maxZ-v.minZ)*v.scale + 44);
+      }
     }
     if(layDrag && layDrag.kind==='band'){
       ctx.strokeStyle='rgba(85,144,217,.8)'; ctx.fillStyle='rgba(85,144,217,.12)';
@@ -3223,9 +3252,12 @@
         : count+' fixture'+(count>1?'s':'')+' · '+Math.max(1,layout.cols|0)+' wide grid · rig '+spanW.toFixed(1)+' × '+spanD.toFixed(1)+' m · truss at '+(+layout.trussH).toFixed(1)+' m';
     }
     var info = document.getElementById('laySelInfo');
-    if(info) info.textContent = laySelCount()
-      ? laySelCount()+' selected — drag to move (Custom), shift-click extends the range'
-      : '0 selected — click a fixture; shift-click another to select the range between them';
+    if(info) info.textContent = layPending
+      ? 'Shape preview — resize with the handles, then Confirm (Enter) or Cancel (Esc)'
+      : laySelCount()
+        ? laySelCount()+' selected — drag to move (Custom) · shift-click ranges · ⌘-click removes'
+        : '0 selected — click a fixture, shift-click another for the range, or use the list';
+    if(renderLayListRef) renderLayListRef();
   }
   function curveCtrl(p0, p1){
     var bend = +((document.getElementById('layBend')||{}).value) || 0;
@@ -3266,6 +3298,7 @@
     });
     /* mode: grid vs custom placement */
     var setLayModeSeg = makeSeg('layModeSeg','layModeThumb','data-laymode', function(v2){
+      resolvePending(false);
       pushUndo('layout mode','laymode');
       layout.mode = v2==='custom' ? 'custom' : 'grid';
       if(layout.mode==='custom'){
@@ -3291,13 +3324,15 @@
     });
     document.getElementById('layBend').addEventListener('input', function(){
       document.getElementById('layBendVal').textContent = (+this.value).toFixed(1)+' m';
-      drawLayoutPlan();
+      if(layPending && layPending.tool==='curve') applyPendingPreview();
+      else drawLayoutPlan();
     });
     document.getElementById('laySelAllBtn').addEventListener('click', function(){
       laySel = {}; winchData.forEach(function(w2){ laySel[w2.id]=true; }); drawLayoutPlan();
     });
     document.getElementById('laySelNoneBtn').addEventListener('click', function(){ laySel = {}; drawLayoutPlan(); });
     document.getElementById('laySeedBtn').addEventListener('click', function(){
+      resolvePending(false);
       pushUndo('arrange');
       var m3 = layout.mode; layout.mode='grid';
       winchData.forEach(function(w2, i2){ var pp3 = fixturePlanPos(i2); w2.lx = pp3.x; w2.lz = pp3.z; });
@@ -3355,6 +3390,26 @@
       if(!winchData.length) return;
       try { planCv.setPointerCapture(e.pointerId); } catch(_e){ /* synthetic events */ }
       var xy = planXY(e), v2 = currentView();
+      if(layPending){
+        /* adjust the placed shape: drag a square handle, or the path to move it */
+        var ha = planToPx(v2, {x:layPending.x0, z:layPending.z0});
+        var hb = planToPx(v2, {x:layPending.x1, z:layPending.z1});
+        if(Math.hypot(ha.x-xy.px, ha.y-xy.py) < 12){ layDrag = { kind:'handle', which:'a', view:v2 }; return; }
+        if(Math.hypot(hb.x-xy.px, hb.y-xy.py) < 12){ layDrag = { kind:'handle', which:'b', view:v2 }; return; }
+        var pm0 = pxToPlan(v2, xy.px, xy.py);
+        var nearPath = false;
+        if(layPending.tool==='circle'){
+          var rr3 = Math.hypot(layPending.x1-layPending.x0, layPending.z1-layPending.z0);
+          nearPath = Math.abs(Math.hypot(pm0.x-layPending.x0, pm0.z-layPending.z0) - rr3)*v2.scale < 10;
+        } else {
+          var vx = layPending.x1-layPending.x0, vz = layPending.z1-layPending.z0;
+          var ll = vx*vx+vz*vz || 1;
+          var tt = Math.max(0, Math.min(1, ((pm0.x-layPending.x0)*vx + (pm0.z-layPending.z0)*vz)/ll));
+          nearPath = Math.hypot(pm0.x-(layPending.x0+vx*tt), pm0.z-(layPending.z0+vz*tt))*v2.scale < 12;
+        }
+        if(nearPath){ layDrag = { kind:'handle', which:'both', view:v2, lastX:pm0.x, lastZ:pm0.z }; }
+        return;
+      }
       if(layoutIsCustom() && layTool!=='select'){
         var pm = pxToPlan(v2, xy.px, xy.py);
         layDrag = { kind:'shape', tool:layTool, view:v2, x0:pm.x, z0:pm.z, x1:pm.x, z1:pm.z };
@@ -3363,6 +3418,13 @@
       var hit = hitFixture(v2, xy.px, xy.py);
       if(hit!==null){
         var wid = winchData[hit].id;
+        if(e.metaKey || e.ctrlKey){
+          /* toggle a single fixture in or out of the selection */
+          if(laySel[wid]) delete laySel[wid];
+          else { laySel[wid] = true; layAnchor = wid; }
+          drawLayoutPlan();
+          return;
+        }
         if(e.shiftKey && layAnchor!==null){
           /* patch-order RANGE from the anchor to here */
           var ai = winchData.findIndex(function(w2){ return w2.id===layAnchor; });
@@ -3389,6 +3451,18 @@
       if(layDrag.kind==='band'){ layDrag.px1 = xy.px; layDrag.py1 = xy.py; drawLayoutPlan(); return; }
       var pm = pxToPlan(layDrag.view, xy.px, xy.py);
       if(layDrag.kind==='shape'){ layDrag.x1 = pm.x; layDrag.z1 = pm.z; drawLayoutPlan(); return; }
+      if(layDrag.kind==='handle'){
+        if(layDrag.which==='a'){ layPending.x0 = pm.x; layPending.z0 = pm.z; }
+        else if(layDrag.which==='b'){ layPending.x1 = pm.x; layPending.z1 = pm.z; }
+        else {
+          var mdx = pm.x-layDrag.lastX, mdz = pm.z-layDrag.lastZ;
+          layDrag.lastX = pm.x; layDrag.lastZ = pm.z;
+          layPending.x0 += mdx; layPending.z0 += mdz;
+          layPending.x1 += mdx; layPending.z1 += mdz;
+        }
+        applyPendingPreview();
+        return;
+      }
       /* move the whole selection by the pointer delta */
       var dx = pm.x-layDrag.lastX, dz = pm.z-layDrag.lastZ;
       if(!dx && !dz) return;
@@ -3421,24 +3495,19 @@
         return;
       }
       if(d2.kind==='shape'){
-        applyArrangement(d2);
+        startPending(d2);
         return;
       }
+      if(d2.kind==='handle') return; /* still previewing */
       if(d2.kind==='move' && d2.moved) applyLayout();
     });
-    function applyArrangement(d2){
-      var idxs = laySelIndices();
-      if(idxs.length<2) idxs = winchData.map(function(_w, i2){ return i2; });
-      var n2 = idxs.length;
-      if(n2<2){ drawLayoutPlan(); return; }
-      if(d2.tool!=='circle' && Math.hypot(d2.x1-d2.x0, d2.z1-d2.z0)<0.05){ drawLayoutPlan(); return; }
-      pushUndo('arrange');
-      var p0 = {x:d2.x0, z:d2.z0}, p1 = {x:d2.x1, z:d2.z1};
-      idxs.forEach(function(i2, k2){
-        var t2 = k2/(n2-1), w2 = winchData[i2], nx, nz;
-        if(d2.tool==='line'){
+    function shapePositions(tool, p0, p1, n2){
+      var out = [];
+      for(var k2=0;k2<n2;k2++){
+        var t2 = n2>1 ? k2/(n2-1) : 0, nx, nz;
+        if(tool==='line'){
           nx = p0.x+(p1.x-p0.x)*t2; nz = p0.z+(p1.z-p0.z)*t2;
-        } else if(d2.tool==='circle'){
+        } else if(tool==='circle'){
           var rr2 = Math.max(0.3, Math.hypot(p1.x-p0.x, p1.z-p0.z));
           var a0 = Math.atan2(p1.z-p0.z, p1.x-p0.x);
           var ang = a0 + (k2/n2)*Math.PI*2; /* even spacing, no doubled endpoint */
@@ -3449,11 +3518,100 @@
           nx = mt*mt*p0.x + 2*mt*t2*cp.x + t2*t2*p1.x;
           nz = mt*mt*p0.z + 2*mt*t2*cp.z + t2*t2*p1.z;
         }
-        w2.lx = snapM(nx); w2.lz = snapM(nz);
-      });
-      applyLayout();
-      logLine('Arranged '+n2+' fixtures on a '+d2.tool);
+        out.push({ x:nx, z:nz });
+      }
+      return out;
     }
+    function applyPendingPreview(){
+      if(!layPending) return;
+      var pts2 = shapePositions(layPending.tool, {x:layPending.x0, z:layPending.z0}, {x:layPending.x1, z:layPending.z1}, layPending.idxs.length);
+      layPending.idxs.forEach(function(i2, k2){
+        var w2 = winchData[i2];
+        w2.lx = snapM(pts2[k2].x); w2.lz = snapM(pts2[k2].z);
+      });
+      invalidateRanks();
+      if(rebuildRig) rebuildRig();
+      drawLayoutPlan();
+    }
+    function updatePendingUi(){
+      document.getElementById('layShapeConfirm').classList.toggle('on', !!layPending);
+    }
+    function startPending(d2){
+      var idxs = laySelIndices();
+      if(idxs.length<2) idxs = winchData.map(function(_w, i2){ return i2; });
+      if(idxs.length<2){ drawLayoutPlan(); return; }
+      if(d2.tool!=='circle' && Math.hypot(d2.x1-d2.x0, d2.z1-d2.z0)<0.05){ drawLayoutPlan(); return; }
+      layPending = {
+        tool:d2.tool, x0:d2.x0, z0:d2.z0, x1:d2.x1, z1:d2.z1, idxs:idxs,
+        orig: idxs.map(function(i2){ return { i:i2, lx:winchData[i2].lx, lz:winchData[i2].lz }; })
+      };
+      applyPendingPreview();
+      updatePendingUi();
+    }
+    function restorePendingOrig(pd){
+      pd.orig.forEach(function(o2){
+        var w2 = winchData[o2.i];
+        if(o2.lx===undefined){ delete w2.lx; delete w2.lz; }
+        else { w2.lx = o2.lx; w2.lz = o2.lz; }
+      });
+    }
+    function resolvePending(confirm){
+      if(!layPending) return;
+      var pd = layPending; layPending = null;
+      /* rewind to the true pre-shape state so undo snapshots it correctly */
+      restorePendingOrig(pd);
+      if(confirm){
+        pushUndo('arrange');
+        var pts2 = shapePositions(pd.tool, {x:pd.x0, z:pd.z0}, {x:pd.x1, z:pd.z1}, pd.idxs.length);
+        pd.idxs.forEach(function(i2, k2){
+          var w2 = winchData[i2];
+          w2.lx = snapM(pts2[k2].x); w2.lz = snapM(pts2[k2].z);
+        });
+        logLine('Arranged '+pd.idxs.length+' fixtures on a '+pd.tool);
+      }
+      applyLayout();
+      updatePendingUi();
+    }
+    document.getElementById('layShapeOkBtn').addEventListener('click', function(){ resolvePending(true); });
+    document.getElementById('layShapeCancelBtn').addEventListener('click', function(){ resolvePending(false); });
+    document.addEventListener('keydown', function(e){
+      if(!layPending) return;
+      var el2 = document.activeElement;
+      if(el2 && (el2.tagName==='INPUT' || el2.tagName==='TEXTAREA')) return;
+      if(e.code==='Enter' || e.code==='NumpadEnter'){ e.preventDefault(); resolvePending(true); }
+      else if(e.code==='Escape'){ e.preventDefault(); resolvePending(false); }
+    });
+
+    /* side list — build selections by name/number, then draw the shape */
+    function renderLayList(){
+      var el2 = document.getElementById('layFixList');
+      if(!el2) return;
+      if(el2.childElementCount !== winchData.length){
+        el2.innerHTML = winchData.map(function(w2){
+          return '<div class="layfix-row" data-lid="'+w2.id+'"><span class="lf-chk"></span>'+pad(w2.id)+' · '+w2.name+'</div>';
+        }).join('');
+      }
+      Array.prototype.forEach.call(el2.children, function(row){
+        row.classList.toggle('sel', !!laySel[+row.getAttribute('data-lid')]);
+      });
+    }
+    renderLayListRef = renderLayList;
+    document.getElementById('layFixList').addEventListener('click', function(e){
+      var row = e.target.closest ? e.target.closest('.layfix-row') : null;
+      if(!row) return;
+      var wid = +row.getAttribute('data-lid');
+      if(e.shiftKey && layAnchor!==null){
+        var ai = winchData.findIndex(function(w2){ return w2.id===layAnchor; });
+        var bi = winchData.findIndex(function(w2){ return w2.id===wid; });
+        if(ai>=0 && bi>=0){
+          var lo = Math.min(ai,bi), hi2 = Math.max(ai,bi);
+          for(var k2=lo;k2<=hi2;k2++) laySel[winchData[k2].id] = true;
+        }
+      } else {
+        if(laySel[wid]) delete laySel[wid]; else { laySel[wid] = true; layAnchor = wid; }
+      }
+      drawLayoutPlan();
+    });
 
     /* read-only introspection for tests + remote support */
     window.__blkLayout = {
@@ -3462,7 +3620,12 @@
       pos: function(i2){ return fixturePlanPos(i2); },
       home: function(i2){ return winchData[i2] ? winchData[i2].homePos : undefined; },
       dotPx: function(i2){ return planToPx(currentView(), fixturePlanPos(i2)); },
-      count: function(){ return winchData.length; }
+      count: function(){ return winchData.length; },
+      pendingHandlePx: function(which){
+        if(!layPending) return null;
+        var pt2 = which==='a' ? {x:layPending.x0, z:layPending.z0} : {x:layPending.x1, z:layPending.z1};
+        return planToPx(currentView(), pt2);
+      }
     };
 
     /* the rail switch fires a resize event, so the plan redraws when the
