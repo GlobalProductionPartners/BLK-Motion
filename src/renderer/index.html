@@ -932,6 +932,7 @@
                 <label title="How far the fabric droops between motors">Sag</label>
                 <input type="range" min="0" max="1.5" step="0.05" value="0.4" id="layClothSag">
                 <span class="u" id="layClothSagVal">0.40 m</span>
+                <label class="lay-chk" title="Draw the motors and the cables running down from the truss — useful for checking pin points, and the only way to see them once the cloth hides the fittings"><input type="checkbox" id="layRigLines">Motors &amp; strings</label>
               </div>
 
               <div class="lay-bar-group" id="layShapeConfirm">
@@ -1503,7 +1504,7 @@
      the Layout view, saved in the show file. GRID_COLS/ROWS stay as plain
      vars because the effect engine reads them constantly. */
   var layout = { cols:12, pitchX:0.8, pitchZ:1.0, trussH:5.2, mode:'grid',
-                 cloth:{ on:false, sag:0.4 } };
+                 cloth:{ on:false, sag:0.4 }, showRig:false };
   var GRID_COLS = layout.cols, GRID_ROWS = 1;
   function layoutIsCustom(){ return layout.mode==='custom'; }
   /* one source of truth for where a fixture hangs in plan (metres).
@@ -3682,6 +3683,14 @@
         if(rebuildRig) rebuildRig();
       });
       sagC.addEventListener('change', function(){ pushUndo('cloth sag','clothsag'); });
+      var rigC = document.getElementById('layRigLines');
+      rigC.addEventListener('change', function(){
+        pushUndo('motors & strings');
+        layout.showRig = rigC.checked;
+        logLine(layout.showRig ? 'Motors and strings shown' : 'Motors and strings hidden');
+      });
+      var syncClothInner = syncCloth;
+      syncCloth = function(){ syncClothInner(); rigC.checked = !!layout.showRig; };
       refreshClothUi = syncCloth;
       syncCloth();
     })();
@@ -6156,7 +6165,7 @@
        placed into the Layout grid in patch order (wrapping every `cols`).
        rebuildRig() re-derives everything from the patch + layout, so adding
        or removing fixtures reshapes the Monitor live. */
-    var N, halfW, halfD, trussY, fixtureBase, fixturePos, fixtureColor, fixtureScale, fixtureLimitBlend;
+    var N, halfW, halfD, trussY, fixtureBase, fixturePos, fixtureColor, fixtureScale, fixtureLimitBlend, fixtureHangY;
     rebuildRig = function(){
       GRID_COLS = Math.max(1, layout.cols|0);
       N = winchData.length;
@@ -6181,6 +6190,7 @@
       halfW = Math.max(0.5, (maxX-minX)/2);
       halfD = Math.max(0.5, (maxZ-minZ)/2);
       fixturePos = new Float32Array(N*3); fixtureColor = new Float32Array(N*3); fixtureScale = new Float32Array(N*3);
+      fixtureHangY = new Float32Array(N); /* where the cable actually ends */
       fixtureLimitBlend = new Float32Array(N);
       staticDirty = true; /* floor grid + truss follow the new extents */
       clothDirty = true;  /* pin positions changed — re-solve the weave */
@@ -6235,6 +6245,29 @@
       aCol:gl.getAttribLocation(clothProg,'aCol'),
       uProj:gl.getUniformLocation(clothProg,'uProj'), uView:gl.getUniformLocation(clothProg,'uView'),
       uLightDir:gl.getUniformLocation(clothProg,'uLightDir'), uEye:gl.getUniformLocation(clothProg,'uEye') };
+    /* motors + strings: the cable each winch pays out, drawn from the truss
+       down to the real cable end, plus a marker at the motor itself */
+    var cableBuf = gl.createBuffer(), cableData = null, cableCount = 0;
+    function updateCables(){
+      cableCount = 0;
+      if(!layout.showRig || !N) return;
+      var n = 0;
+      for(var i=0;i<N;i++) if(!winchData[i].inCase) n++;
+      if(!n) return;
+      if(!cableData || cableData.length < n*14) cableData = new Float32Array(n*14);
+      var o = 0;
+      for(var j=0;j<N;j++){
+        if(winchData[j].inCase) continue;
+        var b = fixtureBase[j], y = fixtureHangY[j];
+        cableData[o++]=b.wx; cableData[o++]=trussY; cableData[o++]=b.wz;
+        cableData[o++]=0.62; cableData[o++]=0.62; cableData[o++]=0.66; cableData[o++]=0.22;
+        cableData[o++]=b.wx; cableData[o++]=y;      cableData[o++]=b.wz;
+        cableData[o++]=0.82; cableData[o++]=0.82; cableData[o++]=0.86; cableData[o++]=0.55;
+      }
+      cableCount = n*2;
+      gl.bindBuffer(gl.ARRAY_BUFFER, cableBuf);
+      gl.bufferData(gl.ARRAY_BUFFER, cableData, gl.DYNAMIC_DRAW);
+    }
     var clothBuf = gl.createBuffer(), clothIdxBuf = gl.createBuffer();
     var clothRes = 0, clothVertData = null, clothIdxCount = 0;
     var clothGX = null, clothGZ = null;      /* world XZ of each grid vertex */
@@ -6490,6 +6523,7 @@
           /* the fitting IS the rendered object — spheres at true diameter,
              tubes as vertical solids hanging from the cable end, battens as
              horizontal bars. No guide lines, no scenery. */
+          fixtureHangY[i] = yr;
           var isBatten = fitting.category==='batten', isTube = fitting.category==='tube';
           var fitLen = (fitting.sizeCm||100)/100;
           if(isTube){
@@ -6513,6 +6547,13 @@
         gl.enableVertexAttribArray(lLoc.aCol); gl.vertexAttribPointer(lLoc.aCol,4,gl.FLOAT,false,28,12);
         gl.depthMask(false);
         gl.drawArrays(gl.LINES, 0, staticVertCount);
+        updateCables();
+        if(cableCount){
+          gl.bindBuffer(gl.ARRAY_BUFFER, cableBuf);
+          gl.vertexAttribPointer(lLoc.aPos,3,gl.FLOAT,false,28,0);
+          gl.vertexAttribPointer(lLoc.aCol,4,gl.FLOAT,false,28,12);
+          gl.drawArrays(gl.LINES, 0, cableCount);
+        }
         gl.depthMask(true);
         gl.disableVertexAttribArray(lLoc.aCol);
 
@@ -6542,6 +6583,18 @@
         gl.enableVertexAttribArray(sLoc.aPos); gl.vertexAttribPointer(sLoc.aPos,3,gl.FLOAT,false,0,0);
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, sphereIdxBuf);
         gl.uniform1f(sLoc.uGlow, 0.0);
+        if(layout.showRig){
+          /* the motor head itself: a small neutral body so the pin point is
+             readable even when the cloth hides the fittings */
+          gl.uniform1f(sLoc.uEmis, 0.0);
+          gl.uniform3f(sLoc.uColor, 0.42, 0.42, 0.46);
+          for(var mk=0; mk<N; mk++){
+            if(winchData[mk].inCase) continue;
+            gl.uniform3f(sLoc.uCenter, fixtureBase[mk].wx, fixtureHangY[mk], fixtureBase[mk].wz);
+            gl.uniform3f(sLoc.uScale, 0.05, 0.05, 0.05);
+            gl.drawElements(gl.TRIANGLES, sphereIdxCount, gl.UNSIGNED_SHORT, 0);
+          }
+        }
         for(var s3=0; layout.cloth.on ? false : s3<N; s3++){
           var bl = 0.3*fixtureColor[s3*3] + 0.6*fixtureColor[s3*3+1] + 0.1*fixtureColor[s3*3+2];
           gl.uniform1f(sLoc.uEmis, Math.min(1, bl*1.6)); /* lit = emissive body, dark = matte silhouette */
@@ -6779,6 +6832,7 @@
         ['cols','pitchX','pitchZ','trussH'].forEach(function(k){ if(typeof d.layout[k]==='number') layout[k] = d.layout[k]; });
         layout.mode = d.layout.mode==='custom' ? 'custom' : 'grid';
         if(d.layout.cloth) layout.cloth = { on:!!d.layout.cloth.on, sag:+d.layout.cloth.sag||0.4 };
+        layout.showRig = !!d.layout.showRig;
       }
       refreshLayoutInputs(); if(refreshLayoutMode) refreshLayoutMode(); if(refreshClothUi) refreshClothUi(); applyLayout();
       if(typeof d.selectedCueId === 'number' && cueById(d.selectedCueId)) selectedCueId = d.selectedCueId;
