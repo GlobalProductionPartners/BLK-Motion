@@ -646,10 +646,6 @@
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="5" cy="6" r="1.5"/><circle cx="12" cy="6" r="1.5"/><circle cx="19" cy="6" r="1.5"/><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/><path d="M3 19h18"/></svg>
       <span>Layout</span>
     </button>
-    <button class="rail-btn" data-view="groups" title="Selection Groups — pick portions of the rig for scoped effects">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="6" cy="6" r="1.5"/><circle cx="12" cy="6" r="1.5"/><circle cx="18" cy="6" r="1.5"/><circle cx="6" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><rect x="3" y="3" width="12.5" height="12.5" rx="1" stroke-dasharray="2 2"/></svg>
-      <span>Groups</span>
-    </button>
     <button class="rail-btn" data-view="live" title="Fixture Test — drive one fixture by hand">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M5 21V9M12 21V3M19 21v-7"/></svg>
       <span>Fix Test</span>
@@ -855,8 +851,8 @@
       <div class="dock" id="dockLayout">
         <div class="panel" id="panelLayout" style="flex:1 1 auto;">
           <div class="panel-head">
-            <span class="panel-title">Rig Layout</span>
-            <span class="panel-sub">saved with the show — the Monitor and effects follow it live</span>
+            <span class="panel-title">Rig Layout &amp; Groups</span>
+            <span class="panel-sub">positions, start heights and selection groups — the Monitor and effects follow live</span>
             <div class="spacer"></div>
             <button class="panel-head-btn" data-float="panelLayout" title="Float"><svg viewBox="0 0 16 16" width="13" height="13"><path d="M6.5 3.5h-3v9h9v-3M9.5 3.5h3v3M12.5 3.5L8 8" fill="none" stroke="currentColor" stroke-width="1.4"/></svg></button>
             <button class="panel-head-btn" data-close="panelLayout" title="Close"><svg viewBox="0 0 16 16" width="13" height="13"><path d="M4 4l8 8M12 4l-8 8" fill="none" stroke="currentColor" stroke-width="1.4"/></svg></button>
@@ -928,6 +924,15 @@
                 </div>
                 <p class="lib-note" style="margin-top:8px;" id="laySelInfo">0 selected — select fixtures on the plan (works in both modes)</p>
               </div>
+              <div style="margin-top:14px;">
+                <div class="section-head">Selection Groups</div>
+                <div style="display:flex; gap:4px; align-items:center;">
+                  <input type="text" id="groupNameInp" placeholder="Group name" style="flex:1 1 auto; min-width:0; background:var(--recess); border:1px solid var(--hairline); color:var(--text); padding:5px 8px; font-size:11.5px;">
+                  <button class="flat-btn go" id="groupSaveBtn" title="Save the current plan selection as a named group">Save</button>
+                </div>
+                <div id="groupList" style="margin-top:8px;"></div>
+                <p class="lib-note" style="margin-top:6px;">Groups scope cues and timeline tracks to part of the rig. Select fixtures on the plan or in the list above, name them, then Save. Click a saved group to re-select it.</p>
+              </div>
               <p class="lib-note" style="margin-top:14px;" id="layoutSummary"></p>
             </div>
             <div style="flex:1 1 auto; min-width:0; padding:14px 16px; display:flex; flex-direction:column;">
@@ -947,34 +952,6 @@
       </div>
 
       <!-- ============ GROUPS DOCK ============ -->
-      <div class="dock" id="dockGroups">
-        <div class="panel" id="panelGroups" style="flex:1 1 auto;">
-          <div class="panel-head">
-            <span class="panel-title">Selection Groups</span>
-            <span class="panel-sub">click or drag on the plan to pick fixtures, then save as a group</span>
-            <div class="spacer"></div>
-            <button class="panel-head-btn" data-float="panelGroups" title="Float"><svg viewBox="0 0 16 16" width="13" height="13"><path d="M6.5 3.5h-3v9h9v-3M9.5 3.5h3v3M12.5 3.5L8 8" fill="none" stroke="currentColor" stroke-width="1.4"/></svg></button>
-            <button class="panel-head-btn" data-close="panelGroups" title="Close"><svg viewBox="0 0 16 16" width="13" height="13"><path d="M4 4l8 8M12 4l-8 8" fill="none" stroke="currentColor" stroke-width="1.4"/></svg></button>
-          </div>
-          <div class="panel-body" style="flex-direction:row; overflow:hidden;">
-            <div style="flex:1 1 auto; min-width:0; padding:14px 16px; display:flex; flex-direction:column;">
-              <div style="display:flex; align-items:center; gap:10px; margin-bottom:8px;">
-                <input type="text" id="groupNameInp" placeholder="Group name" style="background:var(--recess); border:1px solid var(--hairline); color:var(--text); padding:5px 8px; font-size:12px; width:160px;">
-                <button class="flat-btn go" id="groupSaveBtn">Save Group</button>
-                <button class="flat-btn" id="groupClearBtn">Clear</button>
-                <span class="unit" style="font-size:10.5px;color:var(--text-3);" id="groupSelCount">0 selected</span>
-              </div>
-              <canvas id="groupsPlan" style="flex:1 1 auto; min-height:0; width:100%; cursor:crosshair;"></canvas>
-            </div>
-            <div style="width:250px; flex:0 0 auto; border-left:2px solid var(--bg); padding:16px; overflow-y:auto;">
-              <div class="section-head">Saved Groups</div>
-              <div id="groupList"></div>
-            </div>
-          </div>
-          <div class="panel-resize-handle"></div>
-        </div>
-      </div>
-
       <!-- ============ SETTINGS DOCK ============ -->
       <div class="dock" id="dockSettings">
         <div class="panel" id="panelSettings" style="flex:1 1 auto;">
@@ -3990,71 +3967,15 @@
   }
 
   /* ==========================================================================
-     GROUPS PAGE — the layout plan as a selection surface. Click toggles a
-     fixture, drag draws a marquee; Save stores the picked set as a named
-     group for cues and timeline tracks to scope to.
+     SELECTION GROUPS — merged into the Rig Layout view: the layout plan IS
+     the selection surface, so a group is just the current plan selection
+     under a name. One plan, one selection, no duplicate picking UI.
      ========================================================================== */
-  var groupDraft = {};
-  var groupsGeom = null;
-  var groupMarquee = null;
-  function drawGroupsPlan(){
-    var cv = document.getElementById('groupsPlan');
-    if(!cv) return;
-    var dpr = Math.min(window.devicePixelRatio||1,2);
-    var w = cv.clientWidth||520, h = cv.clientHeight||320;
-    cv.width=w*dpr; cv.height=h*dpr;
-    var ctx = cv.getContext('2d'); ctx.setTransform(dpr,0,0,dpr,0,0);
-    ctx.clearRect(0,0,w,h);
-    var count = winchData.length;
-    var cnt = document.getElementById('groupSelCount');
-    if(cnt) cnt.textContent = Object.keys(groupDraft).length+' selected';
-    if(!count){
-      ctx.fillStyle='rgba(156,156,152,.8)'; ctx.font='11px ui-monospace,monospace';
-      ctx.fillText('No fixtures patched — add them in the Patch view', 20, 34);
-      groupsGeom = null;
-      return;
-    }
-    var cols = Math.max(1, layout.cols|0);
-    var rows = Math.max(1, Math.ceil(count/cols));
-    var rigD = (rows-1)*layout.pitchZ, spanW = (cols-1)*layout.pitchX;
-    var pad = 40;
-    var scale = Math.min((w-pad*2)/Math.max(spanW,0.001), (h-pad*2)/Math.max(rigD,0.001));
-    if(!isFinite(scale) || scale<=0) scale = 40;
-    scale = Math.min(scale, 90);
-    var ox = (w-spanW*scale)/2, oy = (h-rigD*scale)/2;
-    groupsGeom = { ox:ox, oy:oy, scale:scale, cols:cols, rows:rows, count:count };
-    ctx.strokeStyle='rgba(255,255,255,.12)';
-    ctx.strokeRect(ox-16, oy-16, spanW*scale+32, rigD*scale+32);
-    ctx.fillStyle='rgba(156,156,152,.9)'; ctx.font='9.5px ui-monospace,monospace';
-    ctx.fillText('front of stage', ox+spanW*scale/2-30, oy+rigD*scale+28);
-    for(var n=0;n<count;n++){
-      var c = n%cols, r = Math.floor(n/cols);
-      var x = ox + (cols>1 ? c*layout.pitchX*scale : 0);
-      var y = oy + (rows>1 ? r*layout.pitchZ*scale : 0);
-      var wch = winchData[n];
-      var sel = !!groupDraft[wch.id];
-      ctx.beginPath(); ctx.arc(x, y, sel?5:3.4, 0, Math.PI*2);
-      ctx.fillStyle = sel ? '#5590d9' : 'rgba(196,196,190,.6)';
-      ctx.fill();
-      if(sel){ ctx.strokeStyle='rgba(85,144,217,.5)'; ctx.beginPath(); ctx.arc(x,y,7,0,Math.PI*2); ctx.stroke(); }
-    }
-    if(groupMarquee){
-      ctx.strokeStyle='rgba(85,144,217,.8)'; ctx.setLineDash([4,3]);
-      ctx.strokeRect(Math.min(groupMarquee.x0,groupMarquee.x1), Math.min(groupMarquee.y0,groupMarquee.y1),
-                     Math.abs(groupMarquee.x1-groupMarquee.x0), Math.abs(groupMarquee.y1-groupMarquee.y0));
-      ctx.setLineDash([]);
-    }
-  }
-  function groupsFixtureXY(n){
-    var g = groupsGeom;
-    var c = n%g.cols, r = Math.floor(n/g.cols);
-    return { x: g.ox + (g.cols>1 ? c*layout.pitchX*g.scale : 0), y: g.oy + (g.rows>1 ? r*layout.pitchZ*g.scale : 0) };
-  }
   function renderGroupList(){
     var el = document.getElementById('groupList');
     if(!el) return;
-    if(!groups.length){ el.innerHTML = '<p class="lib-note">No groups yet — pick fixtures on the plan and press Save Group.</p>'; return; }
-    el.innerHTML = groups.map(function(g, gi){
+    if(!groups.length){ el.innerHTML = '<p class="lib-note">No groups yet — select fixtures, name them, press Save.</p>'; return; }
+    el.innerHTML = groups.map(function(g){
       return '<div class="group-row" data-group="'+g.id+'"><b>'+g.name+'</b><span>'+g.ids.length+' fixtures</span>' +
         '<button class="rm-btn" data-delgroup="'+g.id+'" title="Delete group">'+RM_ICON+'</button></div>';
     }).join('');
@@ -4063,10 +3984,12 @@
         if(e.target.closest && e.target.closest('[data-delgroup]')) return;
         var g = groupById(row.getAttribute('data-group'));
         if(!g) return;
-        groupDraft = {};
-        g.ids.forEach(function(id){ groupDraft[id] = true; });
+        /* re-select the group on the plan so it can be edited and re-saved */
+        laySel = {};
+        g.ids.forEach(function(id){ if(winchById(id)) laySel[id] = true; });
         document.getElementById('groupNameInp').value = g.name;
-        drawGroupsPlan();
+        drawLayoutPlan();
+        logLine('Group "'+g.name+'" selected — '+Object.keys(laySel).length+' fixtures');
       });
     });
     Array.prototype.slice.call(el.querySelectorAll('[data-delgroup]')).forEach(function(btn){
@@ -4083,60 +4006,24 @@
     });
   }
   function wireGroupsPage(){
-    var cv = document.getElementById('groupsPlan');
-    var down = null, moved = false;
-    cv.addEventListener('pointerdown', function(e){
-      var rect = cv.getBoundingClientRect();
-      down = { x:e.clientX-rect.left, y:e.clientY-rect.top };
-      moved = false;
-      cv.setPointerCapture(e.pointerId);
-    });
-    cv.addEventListener('pointermove', function(e){
-      if(!down) return;
-      var rect = cv.getBoundingClientRect();
-      var x = e.clientX-rect.left, y = e.clientY-rect.top;
-      if(Math.abs(x-down.x)>4 || Math.abs(y-down.y)>4) moved = true;
-      if(moved){ groupMarquee = { x0:down.x, y0:down.y, x1:x, y1:y }; drawGroupsPlan(); }
-    });
-    cv.addEventListener('pointerup', function(e){
-      if(!down || !groupsGeom){ down=null; groupMarquee=null; return; }
-      var rect = cv.getBoundingClientRect();
-      var x = e.clientX-rect.left, y = e.clientY-rect.top;
-      if(moved){
-        var x0=Math.min(down.x,x), x1=Math.max(down.x,x), y0=Math.min(down.y,y), y1=Math.max(down.y,y);
-        for(var n=0;n<groupsGeom.count;n++){
-          var pxy = groupsFixtureXY(n);
-          if(pxy.x>=x0-6 && pxy.x<=x1+6 && pxy.y>=y0-6 && pxy.y<=y1+6) groupDraft[winchData[n].id] = true;
-        }
-      } else {
-        var best=null, bestD=Infinity;
-        for(var n2=0;n2<groupsGeom.count;n2++){
-          var p2 = groupsFixtureXY(n2);
-          var d2 = (p2.x-x)*(p2.x-x)+(p2.y-y)*(p2.y-y);
-          if(d2<bestD){ bestD=d2; best=n2; }
-        }
-        if(best!==null && bestD < 20*20){
-          var wid = winchData[best].id;
-          if(groupDraft[wid]) delete groupDraft[wid]; else groupDraft[wid] = true;
-        }
-      }
-      down = null; groupMarquee = null;
-      drawGroupsPlan();
-    });
-    document.getElementById('groupClearBtn').addEventListener('click', function(){ groupDraft = {}; drawGroupsPlan(); });
     document.getElementById('groupSaveBtn').addEventListener('click', function(){
-      var ids = Object.keys(groupDraft).map(Number);
-      if(!ids.length){ logLine('Pick some fixtures on the plan first','warn'); return; }
+      var ids = Object.keys(laySel).map(Number).filter(function(id){ return winchById(id); });
+      if(!ids.length){ logLine('Select fixtures on the plan first, then Save','warn'); return; }
+      var inp = document.getElementById('groupNameInp');
+      var name = (inp.value || '').trim() || ('Group '+(groups.length+1));
       pushUndo('save group');
-      var name = (document.getElementById('groupNameInp').value || '').trim() || ('Group '+(groups.length+1));
       var existing = groups.find(function(g){ return g.name===name; });
-      if(existing){ existing.ids = ids; logLine('Group updated: '+name+' ('+ids.length+' fixtures)'); }
-      else { groups.push({ id:'g'+Date.now(), name:name, ids:ids }); logLine('Group saved: '+name+' ('+ids.length+' fixtures)'); }
+      if(existing){
+        existing.ids = ids;
+        logLine('Group "'+name+'" updated — '+ids.length+' fixtures','ok');
+      } else {
+        groups.push({ id:'g'+Date.now(), name:name, ids:ids });
+        logLine('Group "'+name+'" saved — '+ids.length+' fixtures','ok');
+      }
+      inp.value = '';
       renderGroupList(); renderTrackHeaders(); renderEditor();
     });
-    window.addEventListener('resize', drawGroupsPlan);
     renderGroupList();
-    drawGroupsPlan();
   }
 
   /* ==========================================================================
@@ -4882,7 +4769,7 @@
      RAIL / DOCK SWITCHING
      ========================================================================== */
   var railBtns = Array.prototype.slice.call(document.querySelectorAll('.rail-btn[data-view]'));
-  var docks = { show:document.getElementById('dockShow'), patch:document.getElementById('dockPatch'), layout:document.getElementById('dockLayout'), groups:document.getElementById('dockGroups'), live:document.getElementById('dockLive'), library:document.getElementById('dockLibrary'), settings:document.getElementById('dockSettings') };
+  var docks = { show:document.getElementById('dockShow'), patch:document.getElementById('dockPatch'), layout:document.getElementById('dockLayout'), live:document.getElementById('dockLive'), library:document.getElementById('dockLibrary'), settings:document.getElementById('dockSettings') };
   railBtns.forEach(function(btn){
     btn.addEventListener('click', function(){
       railBtns.forEach(function(b){ b.classList.remove('active'); });
@@ -4930,7 +4817,7 @@
     renderPatchRows(); renderPatchSummary(); renderPatchNote();
     renderZoneList(); renderZoneInfo(); updateSelCount();
     if(rebuildRig) rebuildRig();
-    drawLayoutPlan(); drawGroupsPlan(); renderViewportHud();
+    drawLayoutPlan(); renderViewportHud();
   }
   /* SAFETY: changing the patch while anything is running stops every cue
      and the timeline — the rig returns to 0 before you rig new hardware */
@@ -6655,7 +6542,7 @@
       }
       if(d.tlAudio && d.tlAudio.src) loadTlAudio(d.tlAudio.src, d.tlAudio.name);
       else drawAudioLane();
-      renderTrackHeaders(); renderRuler(); renderTrackLanes(); renderGroupList(); drawGroupsPlan();
+      renderTrackHeaders(); renderRuler(); renderTrackLanes(); renderGroupList();
       if(!pages.find(function(pg){ return pg.id===currentPageId; })) currentPageId = pages[0].id;
       renderPageTabs(); renderCueGrid(); renderPresetGrid(); renderEditor();
       renderModelsTable(); renderFittingsTable(); renderPatchRows(); renderPatchSummary(); renderPatchNote();
