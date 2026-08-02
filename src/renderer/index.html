@@ -930,8 +930,8 @@
               <div class="lay-bar-group sep">
                 <label class="lay-chk" title="Render a fabric stretched across every motor instead of individual fittings — each winch pulls its own point of the cloth"><input type="checkbox" id="layClothOn">Cloth</label>
                 <label title="How far the fabric droops between motors">Sag</label>
-                <input type="range" min="0" max="1.5" step="0.05" value="0.4" id="layClothSag">
-                <span class="u" id="layClothSagVal">0.40 m</span>
+                <input type="range" min="0" max="0.5" step="0.01" value="0.06" id="layClothSag">
+                <span class="u" id="layClothSagVal">0.06 m</span>
                 <label class="lay-chk" title="Draw the motors and the cables running down from the truss — useful for checking pin points, and the only way to see them once the cloth hides the fittings"><input type="checkbox" id="layRigLines">Motors &amp; strings</label>
               </div>
 
@@ -1504,7 +1504,7 @@
      the Layout view, saved in the show file. GRID_COLS/ROWS stay as plain
      vars because the effect engine reads them constantly. */
   var layout = { cols:12, pitchX:0.8, pitchZ:1.0, trussH:5.2, mode:'grid',
-                 cloth:{ on:false, sag:0.4 }, showRig:false };
+                 cloth:{ on:false, sag:0.06 }, showRig:false };
   var GRID_COLS = layout.cols, GRID_ROWS = 1;
   function layoutIsCustom(){ return layout.mode==='custom'; }
   /* one source of truth for where a fixture hangs in plan (metres).
@@ -6274,6 +6274,7 @@
     var clothPin = null, clothPinW = null;   /* K pin indices + weights per vertex */
     var clothNear = null;                    /* 0 at a motor, 1 a half-span away */
     var clothY = null, clothY0 = null, clothScratch = null; /* reused height buffers */
+    var clothIsPin = null, clothPinMotor = null, clothSettled = false, clothCell = 0.4, clothSpacing = 1;
     var clothDirty = true;
     var CLOTH_K = 6;
     function buildClothMesh(){
@@ -6311,7 +6312,8 @@
 
       /* cells about half a pin-spacing across, per axis — a line of winches
          gets a long thin ribbon, not a coarse square */
-      var cell = spacing*0.45;
+      var cell = spacing*0.4;
+      clothCell = cell; clothSpacing = spacing;
       clothRX = Math.max(6, Math.min(90, Math.round(spanX/cell)+1));
       clothRZ = Math.max(6, Math.min(90, Math.round(spanZ/cell)+1));
       while(clothRX*clothRZ > 7000){ clothRX = Math.max(6, clothRX>>1); clothRZ = Math.max(6, clothRZ>>1); }
@@ -6321,6 +6323,9 @@
       clothPin = new Int32Array(V*CLOTH_K); clothPinW = new Float32Array(V*CLOTH_K);
       clothNear = new Float32Array(V);
       clothY = new Float32Array(V); clothY0 = new Float32Array(V); clothScratch = new Float32Array(V);
+      clothIsPin = new Uint8Array(V); clothPinMotor = new Int32Array(V);
+      for(var pz2=0; pz2<V; pz2++) clothPinMotor[pz2] = -1;
+      clothSettled = false;
       clothVertData = new Float32Array(V*9);
 
       var d = new Array(pins.length);
@@ -6346,6 +6351,16 @@
           clothNear[vi] = Math.min(1, Math.sqrt(d[0].d2)/(spacing*0.6));
         }
       }
+      /* one grid vertex per motor is held at the cable height — the fabric
+         hangs FROM these and finds its own shape everywhere else */
+      pins.forEach(function(i){
+        var b4 = fixtureBase[i];
+        var cx = Math.max(0, Math.min(RX-1, Math.round((b4.wx-minX)/spanX*(RX-1))));
+        var cz = Math.max(0, Math.min(RZ-1, Math.round((b4.wz-minZ)/spanZ*(RZ-1))));
+        var vi2 = cz*RX+cx;
+        clothIsPin[vi2] = 1; clothPinMotor[vi2] = i;
+      });
+
       var idx = [];
       for(var rz=0; rz<RZ-1; rz++){
         for(var rx=0; rx<RX-1; rx++){
@@ -6359,12 +6374,18 @@
       gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(idx), gl.STATIC_DRAW);
     }
     var clothIdxType = gl.UNSIGNED_SHORT;
-    /* per frame: blend the pinned heights + colours, droop, relax, then pull
-       the fabric back onto the cables so it hangs FROM them with no gap */
+    /* per frame: hold the motors, then RELAX the fabric under gravity.
+       A membrane at rest satisfies laplacian(y) = g, so iterating each free
+       vertex toward its neighbours' mean minus a gravity term converges on a
+       real catenary-like drape — soft folds between motors instead of the
+       cone-per-pin an interpolation gives you. The solution is warm-started
+       from the previous frame, so the cloth settles and trails behind the
+       rig the way fabric does, and only a few iterations are needed. */
     function updateCloth(){
       if(!clothVertData) return;
       var RX = clothRX, RZ = clothRZ, V = RX*RZ, sag = +layout.cloth.sag || 0;
-      var ys = clothY, y0 = clothY0;
+      var ys = clothY;
+
       for(var vi=0; vi<V; vi++){
         var y=0, r=0, g=0, b=0;
         for(var k=0;k<CLOTH_K;k++){
@@ -6374,32 +6395,39 @@
           y += fixtureHangY[pi]*wgt;
           r += fixtureColor[pi*3]*wgt; g += fixtureColor[pi*3+1]*wgt; b += fixtureColor[pi*3+2]*wgt;
         }
-        y0[vi] = y;
-        ys[vi] = y - sag*clothNear[vi];
+        clothY0[vi] = y;
         var o = vi*9;
         clothVertData[o]   = clothGX[vi];
         clothVertData[o+2] = clothGZ[vi];
         clothVertData[o+6] = r; clothVertData[o+7] = g; clothVertData[o+8] = b;
       }
-      /* relax the weave so it folds like fabric instead of cusping at pins */
-      for(var pass=0; pass<2; pass++){
-        clothScratch.set(ys);
-        for(var sz=0; sz<RZ; sz++){
-          for(var sx=0; sx<RX; sx++){
-            var si = sz*RX+sx;
-            var nsum = clothScratch[sz*RX+Math.max(0,sx-1)] + clothScratch[sz*RX+Math.min(RX-1,sx+1)]
-                     + clothScratch[Math.max(0,sz-1)*RX+sx] + clothScratch[Math.min(RZ-1,sz+1)*RX+sx];
-            ys[si] = clothScratch[si]*0.45 + (nsum/4)*0.55;
+      if(!clothSettled){ ys.set(clothY0); clothSettled = true; }
+
+      /* motors are hard constraints */
+      for(var pv=0; pv<V; pv++){
+        if(clothIsPin[pv]) ys[pv] = fixtureHangY[clothPinMotor[pv]];
+      }
+      /* A membrane fixed at two points a span L apart, relaxed with a
+         per-cell gravity term g and cell size h, settles to a mid-span
+         deflection of g*L^2/(2*h^2). Invert that so the Sag control is a real
+         measurement: "0.4 m" droops 0.4 m between neighbouring motors. */
+      var hOverL = clothCell / Math.max(0.01, clothSpacing);
+      var grav = sag * 2 * hOverL * hOverL;
+      var omega = 1.75; /* over-relaxation — converges in far fewer sweeps */
+      for(var it=0; it<20; it++){
+        for(var rz2=0; rz2<RZ; rz2++){
+          var rowBase = rz2*RX;
+          for(var rx2=0; rx2<RX; rx2++){
+            var i3 = rowBase+rx2;
+            if(clothIsPin[i3]) continue;
+            var mean = (ys[rowBase+(rx2>0?rx2-1:0)] + ys[rowBase+(rx2<RX-1?rx2+1:RX-1)]
+                      + ys[(rz2>0?rz2-1:0)*RX+rx2] + ys[(rz2<RZ-1?rz2+1:RZ-1)*RX+rx2]) * 0.25;
+            ys[i3] += omega*((mean - grav) - ys[i3]);
           }
         }
       }
-      /* smoothing drags the pinned points down with their neighbours; re-assert
-         the cable heights near each motor so the cloth meets every string */
-      for(var pi2=0; pi2<V; pi2++){
-        var grip = 1 - clothNear[pi2];
-        if(grip > 0) ys[pi2] = ys[pi2]*(1-grip) + y0[pi2]*grip;
-        clothVertData[pi2*9+1] = ys[pi2];
-      }
+      for(var wv=0; wv<V; wv++) clothVertData[wv*9+1] = ys[wv];
+
       /* normals from the height field — central differences on the grid */
       var stepX = (clothGX[1]-clothGX[0]) || 0.1;
       var stepZ = (RZ>1 ? clothGZ[RX]-clothGZ[0] : 0.1) || 0.1;
@@ -6840,7 +6868,7 @@
       if(d.layout){
         ['cols','pitchX','pitchZ','trussH'].forEach(function(k){ if(typeof d.layout[k]==='number') layout[k] = d.layout[k]; });
         layout.mode = d.layout.mode==='custom' ? 'custom' : 'grid';
-        if(d.layout.cloth) layout.cloth = { on:!!d.layout.cloth.on, sag:+d.layout.cloth.sag||0.4 };
+        if(d.layout.cloth) layout.cloth = { on:!!d.layout.cloth.on, sag:Math.min(0.5, +d.layout.cloth.sag||0.06) };
         layout.showRig = !!d.layout.showRig;
       }
       refreshLayoutInputs(); if(refreshLayoutMode) refreshLayoutMode(); if(refreshClothUi) refreshClothUi(); applyLayout();
