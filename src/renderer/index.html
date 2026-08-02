@@ -714,13 +714,15 @@
               <button class="flat-btn" id="calibrateBtn" title="Run a motor speed calibration pass against the selected fixture's patch limits">Calibrate Motor</button>
               <span class="tb-label" id="selCount">0 selected</span>
               <span class="tb-label">· ticked rows edit together</span>
+              <span class="tb-label" title="First console-input universe — the Console column below shows each fixture's desk address">Console uni</span>
+              <input type="number" id="patchDeskUni" min="0" max="63999" title="First console-input universe (same setting as Settings → Console & Remote)">
               <div class="spacer"></div>
               <span class="patch-summary" id="patchSummary"></span>
             </div>
             <div class="patch-note" id="patchNote"></div>
             <div class="patch-table-wrap">
               <table class="patch">
-                <thead><tr><th style="width:26px;"><input type="checkbox" id="patchSelAll" title="Select all"></th><th>ID</th><th>Name</th><th>Model</th><th>Fitting</th><th>Console</th><th>BLK</th><th title="Current position as DMX value">Pos</th><th title="Upper travel limit — DMX 0 is fully up">Top</th><th title="Lower travel limit — DMX 255 is full drop">Bottom</th><th>Max cm/s</th><th>Load</th></tr></thead>
+                <thead><tr><th style="width:26px;"><input type="checkbox" id="patchSelAll" title="Select all"></th><th>ID</th><th>Name</th><th>Model</th><th>Fitting</th><th title="Console-input address (universe.channel) — 6 ch per fixture: Intensity, R, G, B, Position, Position fine">Console</th><th>BLK</th><th title="Current position as DMX value">Pos</th><th title="Upper travel limit — DMX 0 is fully up">Top</th><th title="Lower travel limit — DMX 255 is full drop">Bottom</th><th>Max cm/s</th><th>Load</th></tr></thead>
                 <tbody id="patchRows"></tbody>
               </table>
             </div>
@@ -3361,6 +3363,11 @@
     if(key==='showName') updateShowTitle();
     if(key.indexOf('desk')===0){
       pushDeskConfig(); renderDeskMap();
+      var pdu = document.getElementById('patchDeskUni');
+      if(pdu && +pdu.value !== +settings.deskUniverse) pdu.value = settings.deskUniverse;
+      var sdu = document.querySelector('#dockSettings [data-set="deskUniverse"]');
+      if(sdu && +sdu.value !== +settings.deskUniverse) sdu.value = settings.deskUniverse;
+      renderPatchRows(); /* Console column shows the desk address per fixture */
       if(key==='deskProto') logLine(deskEnabled() ? 'Console input listening — '+settings.deskProto+' from universe '+settings.deskUniverse : 'Console input off');
     }
     if(key==='defaultSpeedCmS') DEFAULT_SPEED_CMS = Math.max(1, +settings.defaultSpeedCmS || 75);
@@ -3991,7 +3998,7 @@
       winchData.push({
         id:id, name:'Winch '+pad(id), type:'Variable',
         modelId:model.id, fittingId:fitting.id, maxSpeed:Math.min(DEFAULT_SPEED_CMS, model.maxSpeedCmS),
-        consoleAddr:'1.'+addr.c, blkAddr:addr.u+'.'+addr.c, protocol:'Art-Net',
+        blkAddr:addr.u+'.'+addr.c, protocol:'Art-Net',
         pos:0, topLimit:0, bottomLimit:255, loadKg:null, status:'on'
       });
       if(selectedWinch===null) selectedWinch = id;
@@ -4033,12 +4040,14 @@
       var label = w.status==='on'?'Online':w.status==='warn'?'Warn':'Fault';
       var overload = w.loadKg!==null && w.loadKg > modelById(w.modelId).maxLoadKg;
       var overspeed = w.maxSpeed > modelById(w.modelId).maxSpeedCmS;
+      var wi = winchData.indexOf(w);
+      var deskAddr = ((Math.round(+settings.deskUniverse)||1)+Math.floor(wi/DESK_PER_UNI))+'.'+((wi%DESK_PER_UNI)*DESK_FOOT+1);
       return '<tr data-rowid="'+w.id+'" class="'+(w.status!=='on'?'offline':'')+(selectedPatchIds[w.id]?' sel':'')+'">' +
         '<td><input type="checkbox" class="patch-sel" data-id="'+w.id+'"'+(selectedPatchIds[w.id]?' checked':'')+'></td>' +
         '<td class="mono-cell">'+pad(w.id)+'</td><td><span class="row-status '+w.status+'" title="'+label+'"></span>'+w.name+'</td>' +
         '<td><select class="model-select" data-id="'+w.id+'">'+WINCH_MODELS.map(function(m){return '<option value="'+m.id+'"'+(m.id===w.modelId?' selected':'')+'>'+m.name+'</option>';}).join('')+'</select></td>' +
         '<td><select class="fitting-select" data-id="'+w.id+'">'+FITTINGS.map(function(f){return '<option value="'+f.id+'"'+(f.id===w.fittingId?' selected':'')+'>'+f.name+'</option>';}).join('')+'</select></td>' +
-        '<td class="mono-cell">'+w.consoleAddr+'</td><td><input class="addr-input mono" data-id="'+w.id+'" value="'+w.blkAddr+'"></td><td class="mono-cell" title="'+dmxToM(w.pos, modelById(w.modelId)).toFixed(2)+' m below top">'+w.pos+'</td>' +
+        '<td class="mono-cell" title="'+(deskEnabled()?'Desk input live ('+settings.deskProto+')':'Console input is off — enable it in Settings → Console & Remote')+'">'+deskAddr+'</td><td><input class="addr-input mono" data-id="'+w.id+'" value="'+w.blkAddr+'"></td><td class="mono-cell" title="'+dmxToM(w.pos, modelById(w.modelId)).toFixed(2)+' m below top">'+w.pos+'</td>' +
         '<td><input type="number" class="limit-input" data-limit="top" data-id="'+w.id+'" value="'+w.topLimit+'"><div class="lim-m">'+dmxToM(w.topLimit, modelById(w.modelId)).toFixed(2)+' m</div></td>' +
         '<td><input type="number" class="limit-input" data-limit="bottom" data-id="'+w.id+'" value="'+w.bottomLimit+'"><div class="lim-m">'+dmxToM(w.bottomLimit, modelById(w.modelId)).toFixed(2)+' m</div></td>' +
         '<td><input type="number" class="limit-input" data-maxspeed="1" data-id="'+w.id+'" value="'+w.maxSpeed+'" style="width:56px;'+(overspeed?'color:var(--red);':'')+'" title="Rated: '+modelById(w.modelId).maxSpeedCmS+' cm/s"></td>' +
@@ -4059,6 +4068,18 @@
     addFixtures(Math.max(1, Math.min(512, Math.round(+document.getElementById('addFixturesCount').value) || 1)));
   });
   document.getElementById('removeFixturesBtn').addEventListener('click', removeSelectedFixtures);
+  (function(){
+    var inp = document.getElementById('patchDeskUni');
+    inp.value = settings.deskUniverse;
+    inp.addEventListener('change', function(){
+      var v = Math.max(0, Math.min(63999, Math.round(+inp.value)||1));
+      inp.value = v;
+      settings.deskUniverse = v;
+      saveSettings();
+      applySettingSideEffects('deskUniverse');
+      logLine('Setting updated: deskUniverse → '+v);
+    });
+  })();
   /* click anywhere on a row (outside a control) to toggle its selection */
   patchRowsEl.addEventListener('click', function(e){
     var t = e.target;
