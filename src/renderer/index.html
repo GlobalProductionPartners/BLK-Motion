@@ -818,10 +818,13 @@
           <div class="panel-body" style="flex-direction:row; overflow:hidden;">
             <div style="width:320px; flex:0 0 auto; padding:18px 20px; overflow-y:auto; border-right:2px solid var(--bg);">
               <div class="section-head">Placement</div>
-              <div class="seg small" id="layModeSeg" style="margin-bottom:12px;">
-                <div class="seg-thumb" id="layModeThumb"></div>
-                <button data-laymode="grid" class="active" title="Fixtures fill a regular grid in patch order">Grid</button>
-                <button data-laymode="custom" title="Free positioning — drag fixtures, or arrange a selection on a line, circle or curve">Custom</button>
+              <div style="display:flex; align-items:center; gap:8px; margin-bottom:12px;">
+                <div class="seg small" id="layModeSeg">
+                  <div class="seg-thumb" id="layModeThumb"></div>
+                  <button data-laymode="grid" class="active" title="Fixtures fill a regular grid in patch order">Grid</button>
+                  <button data-laymode="custom" title="Free positioning — drag fixtures, or arrange a selection on a line, circle or curve">Custom</button>
+                </div>
+                <button class="flat-btn" id="layClearBtn" style="color:var(--yellow);" title="Full reset: back to Grid mode, custom positions wiped, start heights back to top limits (undoable)">Clear Layout</button>
               </div>
               <div class="set-rows compact" id="layGridRows">
                 <div class="set-row"><label>Columns</label><input type="number" min="1" max="48" data-layout="cols"><span class="unit">wrap width</span></div>
@@ -845,9 +848,8 @@
                 </div>
                 <div style="display:flex; gap:4px; margin-top:8px; flex-wrap:wrap;">
                   <button class="flat-btn" id="laySelAllBtn">Select All</button>
-                  <button class="flat-btn" id="laySelNoneBtn">Clear Sel</button>
+                  <button class="flat-btn" id="laySelNoneBtn">Deselect</button>
                   <button class="flat-btn" id="laySeedBtn" title="Copy the current grid slots into the custom positions">Seed from Grid</button>
-                  <button class="flat-btn" id="layClearBtn" title="Wipe the layout: custom positions and start heights go back to the plain grid">Clear Layout</button>
                 </div>
                 <div id="layShapeConfirm" style="display:none; gap:4px; margin-top:8px;">
                   <button class="flat-btn go" id="layShapeOkBtn" title="Keep this arrangement (Enter)">Confirm Shape</button>
@@ -3626,8 +3628,10 @@
       pushUndo('clear layout');
       winchData.forEach(function(w2){ delete w2.lx; delete w2.lz; delete w2.homePos; });
       laySel = {}; layAnchor = null;
+      layout.mode = 'grid';
+      if(refreshLayoutMode) refreshLayoutMode();
       applyLayout();
-      logLine('Layout cleared — grid positions and top-limit start heights restored');
+      logLine('Layout cleared — back to the grid, start heights at top limits (undo restores everything)');
     });
     /* shift-click must range-select, never start a native text selection */
     document.getElementById('layFixList').addEventListener('mousedown', function(e){ e.preventDefault(); });
