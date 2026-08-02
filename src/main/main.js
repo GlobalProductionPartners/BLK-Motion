@@ -9,6 +9,7 @@ const OSC = require('../protocols/osc');
 const UsbDmx = require('../protocols/usbdmx');
 const SacnIn = require('../protocols/sacn-in');
 const license = require('./license');
+const { readMvr } = require('./mvr');
 
 let mainWindow = null;
 let artnet = null;
@@ -95,6 +96,11 @@ function buildAppMenu() {
           label: 'Save Show As…',
           accelerator: 'Shift+CmdOrCtrl+S',
           click: () => mainWindow && mainWindow.webContents.send('menu:save-show-as')
+        },
+        { type: 'separator' },
+        {
+          label: 'Import MVR…',
+          click: () => mainWindow && mainWindow.webContents.send('menu:import-mvr')
         },
         { type: 'separator' },
         {
@@ -333,6 +339,23 @@ ipcMain.handle('net:interfaces', () => {
     });
   });
   return out;
+});
+
+/* ---------- IPC: MVR import ---------- */
+
+ipcMain.handle('mvr:open', async () => {
+  const result = await dialog.showOpenDialog(mainWindow, {
+    title: 'Import MVR',
+    filters: [{ name: 'My Virtual Rig', extensions: ['mvr'] }],
+    properties: ['openFile']
+  });
+  if (result.canceled || result.filePaths.length === 0) return { ok: false };
+  try {
+    const xml = readMvr(result.filePaths[0]);
+    return { ok: true, filePath: result.filePaths[0], xml };
+  } catch (err) {
+    return { ok: false, error: String((err && err.message) || err) };
+  }
 });
 
 /* ---------- IPC: console (desk) input ---------- */

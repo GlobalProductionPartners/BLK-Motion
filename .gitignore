@@ -7,3 +7,6 @@ build/*.iconset/
 
 # licensing private key — never commit
 licensing/signing-key.b64
+
+# MVR test rigs dropped in for import testing
+*.mvr

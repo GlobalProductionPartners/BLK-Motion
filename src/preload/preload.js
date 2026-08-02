@@ -37,6 +37,10 @@ contextBridge.exposeInMainWorld('blk', {
     onMenuSaveAs: (cb) => ipcRenderer.on('menu:save-show-as', () => cb()),
     onMenuOpen: (cb) => ipcRenderer.on('menu:open-show', () => cb())
   },
+  mvr: {
+    open: () => ipcRenderer.invoke('mvr:open'),
+    onMenuImport: (cb) => ipcRenderer.on('menu:import-mvr', () => cb())
+  },
   desk: {
     config: (cfg) => ipcRenderer.invoke('desk:config', cfg),
     onDmx: (cb) => ipcRenderer.on('desk:dmx', (_e, pkt) => cb(pkt))

@@ -313,6 +313,18 @@
 
   .lay-tool.on{ background:var(--text); color:#000; font-weight:600; }
   .lay-filter.on{ background:var(--text); color:#000; font-weight:600; }
+  .modal.mvr-modal{ width:760px; max-width:92vw; }
+  .mvr-modal .set-row label{ flex:0 0 120px; }
+  .mvr-modal .set-row .unit{ flex:1 1 auto; }
+  .mvr-modal .modal-btns{ margin-top:16px; }
+  .mvr-table-wrap{ max-height:300px; overflow:auto; border:1px solid var(--hairline); background:var(--recess); }
+  table.mvr-map{ width:100%; border-collapse:collapse; }
+  table.mvr-map th{ position:sticky; top:0; z-index:1; background:var(--surface-2); text-align:left; font-size:10px; text-transform:uppercase; letter-spacing:.06em; color:var(--text-3); padding:7px 10px; }
+  table.mvr-map td{ padding:5px 10px; border-bottom:1px solid rgba(255,255,255,.05); font-size:11.5px; vertical-align:middle; }
+  table.mvr-map td.mvr-type{ font-family:var(--mono); color:var(--text); }
+  table.mvr-map td.mvr-count{ font-family:var(--mono); color:var(--text-2); }
+  table.mvr-map select{ width:100%; }
+  table.mvr-map tr.skip td.mvr-type{ color:var(--text-3); }
   #layShapeConfirm{ display:none; }
   #layShapeConfirm.on{ display:flex !important; }
   #layFixList{ max-height:190px; overflow-y:auto; border:1px solid var(--hairline); background:var(--recess); user-select:none; -webkit-user-select:none; }
@@ -739,6 +751,7 @@
               <button class="flat-btn go" id="addFixturesBtn" title="Add fixtures to the patch — they appear in the Monitor immediately">Add Fixtures</button>
               <input type="number" id="addFixturesCount" value="1" min="1" max="512" title="How many to add — addresses roll to the next universe automatically">
               <button class="flat-btn" id="removeFixturesBtn" title="Remove the ticked fixtures from the patch">Remove</button>
+              <button class="flat-btn" id="importMvrBtn" title="Import fixtures, addressing and positions from an MVR (My Virtual Rig) file">Import MVR</button>
               <button class="flat-btn go" id="autoDiscoverBtn">Auto-Discover</button>
               <button class="flat-btn" title="Ask every winch to report its actual position">Poll Positions</button>
               <button class="flat-btn" id="highlightBtn" title="Light the selected fixtures full white in the Live View — position untouched">Highlight</button>
@@ -1109,6 +1122,28 @@
       <button class="flat-btn go" id="patchSeqBtn">Sequential</button>
       <button class="flat-btn" id="patchSameBtn">All Same</button>
       <button class="flat-btn" id="patchCancelBtn">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="mvrModal" hidden>
+  <div class="modal mvr-modal">
+    <div class="modal-title">Import MVR — <span id="mvrFileName" class="mono"></span></div>
+    <p class="modal-text" id="mvrSummary"></p>
+    <div class="mvr-table-wrap">
+      <table class="mvr-map">
+        <thead><tr><th>MVR fixture type</th><th style="width:60px;">Count</th><th style="width:190px;">Motor</th><th style="width:190px;">Fitting</th></tr></thead>
+        <tbody id="mvrRows"></tbody>
+      </table>
+    </div>
+    <div class="set-rows compact" style="margin-top:12px;">
+      <div class="set-row"><label>MVR positions</label><input type="checkbox" id="mvrUsePos" checked><span class="unit">hang the rig exactly as the MVR places it (switches Layout to Custom)</span></div>
+      <div class="set-row"><label>MVR heights</label><input type="checkbox" id="mvrUseHeight" checked><span class="unit">truss height and per-fixture start heights from the MVR Z</span></div>
+      <div class="set-row"><label>Replace patch</label><input type="checkbox" id="mvrReplace"><span class="unit">off — add to the existing patch</span></div>
+    </div>
+    <div class="modal-btns">
+      <button class="flat-btn go" id="mvrImportBtn">Import</button>
+      <button class="flat-btn" id="mvrCancelBtn">Cancel</button>
     </div>
   </div>
 </div>
@@ -4738,6 +4773,239 @@
       logLine('Setting updated: deskUniverse → '+v);
     });
   })();
+  /* ==========================================================================
+     MVR IMPORT — an .mvr (My Virtual Rig) carries the designer's fixture
+     list, DMX addressing and real 3D positions. Main reads the ZIP and hands
+     us GeneralSceneDescription.xml; we parse it here (DOMParser), let the
+     operator map each MVR fixture type onto a BLK motor + fitting, then
+     build the patch and the layout from it.
+     MVR units are millimetres, Z-up: X -> plan X, Y -> plan depth, Z -> height.
+     ========================================================================== */
+  var mvrPending = null; /* { fileName, fixtures:[], types:[] } awaiting mapping */
+  function mvrText(el, tag){
+    for(var i=0;i<el.children.length;i++){ if(el.children[i].tagName===tag) return el.children[i].textContent.trim(); }
+    return '';
+  }
+  function mvrMatrix(str){
+    /* "{ux,uy,uz}{vx,vy,vz}{wx,wy,wz}{ox,oy,oz}" — basis vectors + origin */
+    var g = String(str||'').match(/\{[^}]*\}/g);
+    if(!g || g.length<4) return null;
+    var v = g.map(function(part){
+      var n = part.replace(/[{}]/g,'').split(',').map(parseFloat);
+      return [n[0]||0, n[1]||0, n[2]||0];
+    });
+    return { u:v[0], v:v[1], w:v[2], o:v[3] };
+  }
+  function mvrRot(m, p){
+    return [ m.u[0]*p[0]+m.v[0]*p[1]+m.w[0]*p[2],
+             m.u[1]*p[0]+m.v[1]*p[1]+m.w[1]*p[2],
+             m.u[2]*p[0]+m.v[2]*p[1]+m.w[2]*p[2] ];
+  }
+  function mvrApply(m, p){
+    var r = mvrRot(m, p);
+    return [ r[0]+m.o[0], r[1]+m.o[1], r[2]+m.o[2] ];
+  }
+  function mvrCompose(parent, child){
+    /* groups nest and may be rotated — compose properly so a fixture inside a
+       rotated truss group lands where the designer put it */
+    if(!parent) return child;
+    if(!child) return parent;
+    return { u:mvrRot(parent, child.u), v:mvrRot(parent, child.v), w:mvrRot(parent, child.w), o:mvrApply(parent, child.o) };
+  }
+  function mvrReadFixture(el, m){
+    var pos = m ? m.o : [0,0,0];
+    /* addressing is optional in MVR: plenty of exports are geometry-only
+       (every Address is 0). Leave it null and auto-patch on import rather
+       than stacking the whole rig on 1.1. */
+    var addrEls = el.getElementsByTagName('Address');
+    var universe = null, channel = null;
+    if(addrEls.length){
+      var a = addrEls[0];
+      var abs = parseInt(a.textContent, 10);
+      if(isFinite(abs) && abs >= 1){
+        var uniAttr = a.getAttribute('universe');
+        if(uniAttr!==null && uniAttr!==''){ universe = parseInt(uniAttr,10)||1; channel = abs; }
+        else { universe = Math.floor((abs-1)/512)+1; channel = ((abs-1)%512)+1; }
+      }
+    }
+    var gdtf = (mvrText(el,'GDTFSpec') || 'Unknown').replace(/\.gdtf$/i,'');
+    var mode = mvrText(el,'GDTFMode');
+    return {
+      name: el.getAttribute('name') || mvrText(el,'Name') || 'Fixture',
+      typeKey: gdtf + (mode ? ' · ' + mode : ''),
+      universe: universe, channel: channel,
+      x: pos[0]/1000, y: pos[1]/1000, z: pos[2]/1000
+    };
+  }
+  function mvrCollect(el, parentM, out){
+    Array.prototype.forEach.call(el.children, function(ch){
+      var tag = ch.tagName;
+      if(tag==='Scene' || tag==='Layers' || tag==='ChildList'){ mvrCollect(ch, parentM, out); return; }
+      if(tag!=='Layer' && tag!=='GroupObject' && tag!=='Fixture') return; /* AUXData, UserData, symbols… */
+      var own = mvrMatrix(mvrText(ch, 'Matrix'));
+      var m = own ? mvrCompose(parentM, own) : parentM;
+      if(tag==='Fixture') out.push(mvrReadFixture(ch, m));
+      else mvrCollect(ch, m, out);
+    });
+  }
+  function parseMvrXml(xml){
+    var doc = new DOMParser().parseFromString(xml, 'application/xml');
+    if(doc.getElementsByTagName('parsererror').length) throw new Error('the scene XML is malformed');
+    var root = doc.documentElement;
+    if(!root) throw new Error('empty scene description');
+    var out = [];
+    mvrCollect(root, null, out);
+    return out;
+  }
+  function openMvrModal(fileName, fixtures){
+    var types = {};
+    fixtures.forEach(function(f){ types[f.typeKey] = (types[f.typeKey]||0)+1; });
+    var keys = Object.keys(types).sort();
+    mvrPending = { fileName:fileName, fixtures:fixtures, types:keys };
+    document.getElementById('mvrFileName').textContent = fileName;
+    var zs = fixtures.map(function(f){ return f.z; });
+    var hi = Math.max.apply(null, zs), lo = Math.min.apply(null, zs);
+    var noAddr = fixtures.filter(function(f){ return f.universe===null; }).length;
+    document.getElementById('mvrSummary').textContent =
+      fixtures.length+' fixture'+(fixtures.length>1?'s':'')+' in '+keys.length+' type'+(keys.length>1?'s':'')+
+      ' · hang heights '+lo.toFixed(2)+'–'+hi.toFixed(2)+' m · ' +
+      (noAddr===fixtures.length ? 'no DMX addressing in this file — fixtures will be patched sequentially'
+        : noAddr ? noAddr+' without addressing will be patched sequentially'
+        : 'DMX addresses come from the file') +
+      '. Map each type onto a motor, or leave it on Skip to ignore it.';
+    var modelOpts = WINCH_MODELS.map(function(m){ return '<option value="'+m.id+'">'+m.name+'</option>'; }).join('');
+    var fitOpts = FITTINGS.map(function(f){ return '<option value="'+f.id+'">'+f.name+'</option>'; }).join('');
+    document.getElementById('mvrRows').innerHTML = keys.map(function(k, i){
+      return '<tr data-mvrtype="'+i+'"><td class="mvr-type">'+k.replace(/</g,'&lt;')+'</td>' +
+        '<td class="mvr-count">'+types[k]+'</td>' +
+        '<td><select class="mvr-model"><option value="">— skip —</option>'+modelOpts+'</select></td>' +
+        '<td><select class="mvr-fit">'+fitOpts+'</select></td></tr>';
+    }).join('');
+    /* default: map everything onto the first motor — the common case is a rig
+       of one winch type, and skipping is the deliberate action */
+    Array.prototype.forEach.call(document.querySelectorAll('#mvrRows .mvr-model'), function(sel){
+      if(WINCH_MODELS.length) sel.value = WINCH_MODELS[0].id;
+    });
+    mvrSyncRows();
+    document.getElementById('mvrModal').hidden = false;
+  }
+  function mvrSyncRows(){
+    if(!mvrPending) return;
+    var n = 0;
+    Array.prototype.forEach.call(document.querySelectorAll('#mvrRows tr'), function(tr, i){
+      var picked = !!tr.querySelector('.mvr-model').value;
+      tr.classList.toggle('skip', !picked);
+      if(picked) n += mvrPending.fixtures.filter(function(f){ return f.typeKey===mvrPending.types[i]; }).length;
+    });
+    var btn = document.getElementById('mvrImportBtn');
+    btn.textContent = n ? 'Import '+n+' fixture'+(n>1?'s':'') : 'Nothing selected';
+    btn.disabled = !n;
+  }
+  function closeMvrModal(){
+    document.getElementById('mvrModal').hidden = true;
+    mvrPending = null;
+  }
+  function applyMvrImport(){
+    if(!mvrPending) return;
+    var picks = {};
+    Array.prototype.forEach.call(document.querySelectorAll('#mvrRows tr'), function(tr, i){
+      var mid = tr.querySelector('.mvr-model').value;
+      if(mid) picks[mvrPending.types[i]] = { modelId:mid, fittingId:tr.querySelector('.mvr-fit').value };
+    });
+    var chosen = mvrPending.fixtures.filter(function(f){ return picks[f.typeKey]; });
+    if(!chosen.length){ logLine('MVR import: nothing mapped','warn'); return; }
+    var usePos = document.getElementById('mvrUsePos').checked;
+    var useHeight = document.getElementById('mvrUseHeight').checked;
+    var replace = document.getElementById('mvrReplace').checked;
+    var fileName = mvrPending.fileName;
+
+    patchSafetyStop();
+    pushUndo('import MVR');
+    if(replace){ winchData.length = 0; selectedPatchIds = {}; laySel = {}; layAnchor = null; }
+
+    if(useHeight){
+      var maxZ = chosen.reduce(function(m,f){ return Math.max(m, f.z); }, 0);
+      if(isFinite(maxZ) && maxZ > 1) layout.trussH = Math.max(1, Math.min(30, Math.round(maxZ*100)/100));
+    }
+    var nextId = winchData.reduce(function(m,w){ return Math.max(m, w.id); }, 0);
+    /* fixtures the MVR left unaddressed get patched sequentially, stepping by
+       each model's real DMX footprint, starting after the existing rig */
+    var autoU = null, autoC = null;
+    function autoAddr(model){
+      if(autoU===null){ var a = nextFreeAddr(); autoU = a.u; autoC = a.c; }
+      var fp = modelFootprint(model);
+      if(autoC + fp - 1 > 512){ autoU++; autoC = 1; }
+      var out = autoU+'.'+autoC;
+      autoC += fp;
+      return out;
+    }
+    /* MVR names repeat across a rig of identical units — number them so the
+       patch stays readable */
+    var nameTotal = {};
+    chosen.forEach(function(f){ nameTotal[f.name] = (nameTotal[f.name]||0)+1; });
+    var nameSeq = {};
+    chosen.forEach(function(f){
+      var pick = picks[f.typeKey];
+      var model = modelById(pick.modelId) || WINCH_MODELS[0];
+      var nm = f.name;
+      if(nameTotal[nm] > 1){ nameSeq[nm] = (nameSeq[nm]||0)+1; nm = nm+' '+pad(nameSeq[nm]); }
+      var w = {
+        id: ++nextId, name: nm, type:'Variable',
+        modelId: model.id, fittingId: pick.fittingId,
+        maxSpeed: Math.min(DEFAULT_SPEED_CMS, model.maxSpeedCmS),
+        blkAddr: f.universe!==null ? (f.universe+'.'+f.channel) : autoAddr(model),
+        protocol:'Art-Net',
+        pos:0, topLimit:0, bottomLimit:255, loadKg:null, status:'on'
+      };
+      if(usePos){ w.lx = Math.round(f.x*1000)/1000; w.lz = Math.round(f.y*1000)/1000; }
+      if(useHeight){
+        /* the MVR hangs this unit below the truss — that drop IS its rest
+           position, expressed in this model's DMX travel */
+        var drop = layout.trussH - f.z;
+        if(drop > 0.02){
+          var d = Math.round((drop/modelLiftM(model))*255);
+          if(d > 0) w.homePos = Math.max(0, Math.min(255, d));
+        }
+      }
+      winchData.push(w);
+    });
+    if(usePos){
+      layout.mode = 'custom';
+      if(refreshLayoutMode) refreshLayoutMode();
+    }
+    if(!winchById(selectedWinch)) selectedWinch = winchData.length ? winchData[0].id : null;
+    refreshLayoutInputs();
+    patchChanged();
+    applyLayout();
+    closeMvrModal();
+    var nAuto = chosen.filter(function(f){ return f.universe===null; }).length;
+    logLine('MVR import: '+chosen.length+' fixtures from '+fileName+
+      (usePos?' — positions from MVR':'')+(useHeight?', truss '+(+layout.trussH).toFixed(2)+' m':'')+
+      (nAuto?', '+nAuto+' auto-patched':''), 'ok');
+  }
+  function startMvrImport(){
+    if(!(window.blk && window.blk.mvr)){ logLine('MVR import needs the desktop app','warn'); return; }
+    window.blk.mvr.open().then(function(res){
+      if(!res || !res.ok){
+        if(res && res.error) logLine('MVR import failed: '+res.error,'warn');
+        return;
+      }
+      var fixtures;
+      try { fixtures = parseMvrXml(res.xml); }
+      catch(err){ logLine('MVR import failed: '+err.message,'warn'); return; }
+      if(!fixtures.length){ logLine('MVR import: no fixtures found in that file','warn'); return; }
+      if(fixtures.length > 512) logLine('MVR holds '+fixtures.length+' fixtures — only map what this rig runs','warn');
+      openMvrModal(res.filePath.split(/[\\/]/).pop(), fixtures);
+    });
+  }
+  document.getElementById('importMvrBtn').addEventListener('click', startMvrImport);
+  document.getElementById('mvrRows').addEventListener('change', mvrSyncRows);
+  document.getElementById('mvrImportBtn').addEventListener('click', applyMvrImport);
+  document.getElementById('mvrCancelBtn').addEventListener('click', function(){
+    closeMvrModal();
+    logLine('MVR import cancelled');
+  });
+
   /* click anywhere on a row (outside a control) to toggle its selection */
   patchRowsEl.addEventListener('click', function(e){
     var t = e.target;
@@ -6063,6 +6331,7 @@
       if(el && (el.tagName==='INPUT'||el.tagName==='TEXTAREA')){ document.execCommand('redo'); return; }
       doRedo();
     });
+    if(window.blk.mvr && window.blk.mvr.onMenuImport) window.blk.mvr.onMenuImport(startMvrImport);
     window.blk.show.onMenuSave(doSave);
     window.blk.show.onMenuSaveAs(doSaveAs);
     if(window.blk.show.autosave){
