@@ -296,6 +296,9 @@
   /* ---- Buttons ---- */
   .flat-btn{ background:var(--surface-2); color:var(--text-2); font-size:11.5px; padding:7px 14px; }
 
+  .lay-tool.on{ background:var(--text); color:#000; font-weight:600; }
+  #layModeSeg{ display:inline-flex; } /* shrink-wrap so the thumb tracks the buttons */
+
   /* settings tabs */
   .set-tabs{ display:flex; gap:2px; padding:8px 20px 0; flex:0 0 auto; background:var(--surface); }
   .set-tabs button{ background:var(--surface-2); color:var(--text-2); font-size:10.5px; padding:6px 14px; text-transform:uppercase; letter-spacing:.05em; }
@@ -805,15 +808,51 @@
           </div>
           <div class="panel-body" style="flex-direction:row; overflow:hidden;">
             <div style="width:320px; flex:0 0 auto; padding:18px 20px; overflow-y:auto; border-right:2px solid var(--bg);">
-              <div class="section-head">Grid</div>
-              <div class="set-rows compact">
+              <div class="section-head">Placement</div>
+              <div class="seg small" id="layModeSeg" style="margin-bottom:12px;">
+                <div class="seg-thumb" id="layModeThumb"></div>
+                <button data-laymode="grid" class="active" title="Fixtures fill a regular grid in patch order">Grid</button>
+                <button data-laymode="custom" title="Free positioning — drag fixtures, or arrange a selection on a line, circle or curve">Custom</button>
+              </div>
+              <div class="set-rows compact" id="layGridRows">
                 <div class="set-row"><label>Columns</label><input type="number" min="1" max="48" data-layout="cols"><span class="unit">wrap width</span></div>
                 <div class="set-row"><label>Spacing X</label><input type="number" min="0.1" max="10" step="0.1" data-layout="pitchX"><span class="unit">m</span></div>
                 <div class="set-row"><label>Spacing Z</label><input type="number" min="0.1" max="10" step="0.1" data-layout="pitchZ"><span class="unit">m</span></div>
+              </div>
+              <div class="set-rows compact">
                 <div class="set-row"><label>Truss height</label><input type="number" min="1" max="30" step="0.1" data-layout="trussH"><span class="unit">m</span></div>
               </div>
+              <div id="layCustomTools" style="display:none; margin-top:14px;">
+                <div class="section-head">Arrange</div>
+                <div style="display:flex; gap:4px; flex-wrap:wrap; margin-bottom:8px;">
+                  <button class="flat-btn lay-tool on" data-laytool="select" title="Click to select · shift-click selects the patch-order range · drag a box · drag a selected fixture to move the whole selection">Select</button>
+                  <button class="flat-btn lay-tool" data-laytool="line" title="Drag a line — the selection distributes evenly along it">Line</button>
+                  <button class="flat-btn lay-tool" data-laytool="circle" title="Press at the centre, drag the radius — the selection distributes around it">Circle</button>
+                  <button class="flat-btn lay-tool" data-laytool="curve" title="Drag a chord; Bend controls the bow — the selection distributes along the curve">Curve</button>
+                </div>
+                <div class="set-rows compact">
+                  <div class="set-row"><label>Bend</label><input type="range" min="-4" max="4" step="0.1" value="1.2" id="layBend" title="Curve bow in metres — negative bows the other way"><span class="unit" id="layBendVal">1.2 m</span></div>
+                  <div class="set-row"><label>Snap</label><input type="checkbox" id="laySnap" checked><span class="unit">0.1 m</span></div>
+                </div>
+                <div style="display:flex; gap:4px; margin-top:8px;">
+                  <button class="flat-btn" id="laySelAllBtn">Select All</button>
+                  <button class="flat-btn" id="laySelNoneBtn">Clear</button>
+                  <button class="flat-btn" id="laySeedBtn" title="Copy the current grid slots into the custom positions">Seed from Grid</button>
+                </div>
+                <p class="lib-note" style="margin-top:8px;">Arrange tools move the <b>selection</b> in patch order (or every fixture when fewer than 2 are selected). Effects still read direction spatially — left→right follows real X.</p>
+              </div>
+              <div style="margin-top:14px;">
+                <div class="section-head">Start Height</div>
+                <div class="set-rows compact">
+                  <div class="set-row"><label>Rest at</label><input type="number" min="0" max="255" value="0" id="layHomeInp" title="DMX position the fixture rests at when nothing drives it — 0 = fully up"><span class="unit" id="layHomeM">0.00 m</span></div>
+                </div>
+                <div style="display:flex; gap:4px; margin-top:6px;">
+                  <button class="flat-btn" id="layHomeApplyBtn" title="Set the start height of the selected fixtures (or all, when none selected)">Apply</button>
+                  <button class="flat-btn" id="layHomeResetBtn" title="Selected fixtures rest at their top limit again">Reset</button>
+                </div>
+                <p class="lib-note" style="margin-top:8px;" id="laySelInfo">0 selected — select fixtures on the plan (works in both modes)</p>
+              </div>
               <p class="lib-note" style="margin-top:14px;" id="layoutSummary"></p>
-              <p class="lib-note">Only patched fixtures exist in the rig — they fill this grid in patch order, wrapping to a new row every <i>Columns</i>. Add or remove fixtures in the Patch view; effects distribute their direction and phase across the occupied grid.</p>
             </div>
             <div style="flex:1 1 auto; min-width:0; padding:14px 16px; display:flex; flex-direction:column;">
               <div class="section-head">Plan view — top down</div>
@@ -1320,9 +1359,38 @@
      spacing (m) and truss height (m). Rows follow the patch count. Owned by
      the Layout view, saved in the show file. GRID_COLS/ROWS stay as plain
      vars because the effect engine reads them constantly. */
-  var layout = { cols:12, pitchX:0.8, pitchZ:1.0, trussH:5.2 };
+  var layout = { cols:12, pitchX:0.8, pitchZ:1.0, trussH:5.2, mode:'grid' };
   var GRID_COLS = layout.cols, GRID_ROWS = 1;
+  function layoutIsCustom(){ return layout.mode==='custom'; }
+  /* one source of truth for where a fixture hangs in plan (metres).
+     Grid mode: patch order wraps every `cols`. Custom mode: the fixture's
+     own lx/lz, seeded from its grid slot the first time it's needed. */
+  function fixturePlanPos(i){
+    var w = winchData[i];
+    var gx = (i%Math.max(1,layout.cols|0))*layout.pitchX;
+    var gz = Math.floor(i/Math.max(1,layout.cols|0))*layout.pitchZ;
+    if(layoutIsCustom()){
+      if(typeof w.lx!=='number'){ w.lx = gx; w.lz = gz; }
+      return { x:w.lx, z:w.lz };
+    }
+    return { x:gx, z:gz };
+  }
+  /* custom layouts keep directional effects meaningful: fixtures are ranked
+     by real X and Z, and those ranks feed the same wings/blocks phase math
+     the grid uses — "left to right" is literal, whatever the shape */
+  var fxRankX = null, fxRankZ = null;
+  function invalidateRanks(){ fxRankX = null; }
+  function ensureRanks(){
+    if(fxRankX && fxRankX.length===winchData.length) return;
+    var n = winchData.length;
+    fxRankX = new Array(n); fxRankZ = new Array(n);
+    var idx = [];
+    for(var i=0;i<n;i++){ var p = fixturePlanPos(i); idx.push({ i:i, x:p.x, z:p.z }); }
+    idx.slice().sort(function(a,b){ return a.x-b.x || a.i-b.i; }).forEach(function(e,r){ fxRankX[e.i]=r; });
+    idx.slice().sort(function(a,b){ return a.z-b.z || a.i-b.i; }).forEach(function(e,r){ fxRankZ[e.i]=r; });
+  }
   var rebuildRig = null; /* assigned by the 3D viewport once WebGL is up */
+  var refreshLayoutMode = null; /* assigned by wireLayoutPage */
   /* SELECTION GROUPS — named sets of fixtures picked on the layout grid.
      Cues and timeline tracks can be scoped to a group; a missing/deleted
      group falls back to All so playback never silently dies. */
@@ -2409,7 +2477,7 @@
         allStop(false);
         if(tlPlaying) tlStopFn();
         stopHold = {};
-        logLine('HOME ALL — axes recalling to top limits at rated speed','warn');
+        logLine('HOME ALL — axes recalling to their start heights at rated speed','warn');
       }, 750);
     }
     function disarm(){
@@ -3062,6 +3130,34 @@
      value re-derives the 3D rig, the fixture count and the effect-engine
      distribution immediately; the plan canvas is a to-scale top-down view.
      ========================================================================== */
+  /* ---------- interactive plan editor ---------- */
+  var laySel = {};            /* selected winch ids on the plan */
+  var layAnchor = null;       /* last plainly-clicked id — shift-click ranges from here */
+  var layTool = 'select';
+  var layDrag = null;         /* {kind:'move'|'band'|'shape', view, ...} */
+  function laySelCount(){ return Object.keys(laySel).length; }
+  function laySelIndices(){
+    var out = [];
+    winchData.forEach(function(w, i){ if(laySel[w.id]) out.push(i); });
+    return out;
+  }
+  function computePlanView(w, h){
+    var minX=1e9, maxX=-1e9, minZ=1e9, maxZ=-1e9;
+    for(var i=0;i<winchData.length;i++){
+      var p = fixturePlanPos(i);
+      if(p.x<minX)minX=p.x; if(p.x>maxX)maxX=p.x;
+      if(p.z<minZ)minZ=p.z; if(p.z>maxZ)maxZ=p.z;
+    }
+    if(!winchData.length){ minX=maxX=minZ=maxZ=0; }
+    var pad = 46;
+    var scale = Math.min((w-pad*2)/Math.max(maxX-minX,0.001), (h-pad*2)/Math.max(maxZ-minZ,0.001));
+    if(!isFinite(scale) || scale<=0) scale = 40;
+    scale = Math.min(scale, 90);
+    return { scale:scale, minX:minX, minZ:minZ, maxX:maxX, maxZ:maxZ,
+             ox:(w-(maxX-minX)*scale)/2, oy:(h-(maxZ-minZ)*scale)/2 };
+  }
+  function planToPx(v, p){ return { x: v.ox+(p.x-v.minX)*v.scale, y: v.oy+(p.z-v.minZ)*v.scale }; }
+  function pxToPlan(v, px, py){ return { x: v.minX+(px-v.ox)/v.scale, z: v.minZ+(py-v.oy)/v.scale }; }
   function drawLayoutPlan(){
     var cv = document.getElementById('layoutPlan');
     if(!cv) return;
@@ -3078,34 +3174,69 @@
       if(summary) summary.textContent = 'Patch is empty — the rig has no fixtures.';
       return;
     }
-    var cols = Math.max(1, layout.cols|0);
-    var rows = Math.max(1, Math.ceil(count/cols));
-    var rigW = (Math.min(count,cols)-1)*layout.pitchX, rigD = (rows-1)*layout.pitchZ;
-    var pad = 40;
-    var scale = Math.min((w-pad*2)/Math.max(rigW,0.001), (h-pad*2)/Math.max(rigD,0.001));
-    if(!isFinite(scale) || scale<=0) scale = 40;
-    scale = Math.min(scale, 90);
-    /* the grid extent spans the full `cols` width so slot positions match the 3D view */
-    var spanW = (cols-1)*layout.pitchX;
-    var ox = (w-spanW*scale)/2, oy = (h-rigD*scale)/2;
+    var v = (layDrag && layDrag.view) ? layDrag.view : computePlanView(w, h);
+    var spanW = v.maxX-v.minX, spanD = v.maxZ-v.minZ;
     ctx.strokeStyle='rgba(255,255,255,.12)';
-    ctx.strokeRect(ox-16, oy-16, spanW*scale+32, rigD*scale+32);
-    ctx.fillStyle='rgba(156,156,152,.9)'; ctx.font='9.5px ui-monospace,monospace';
-    ctx.fillText(spanW.toFixed(1)+' m', ox+spanW*scale/2-12, oy-22);
-    ctx.fillText('front of stage', ox+spanW*scale/2-30, oy+rigD*scale+28);
-    if(rows>1){ ctx.save(); ctx.translate(ox-24, oy+rigD*scale/2+12); ctx.rotate(-Math.PI/2); ctx.fillText(rigD.toFixed(1)+' m',0,0); ctx.restore(); }
+    ctx.strokeRect(v.ox-16, v.oy-16, spanW*v.scale+32, spanD*v.scale+32);
+    ctx.fillStyle='rgba(156,156,152,.9)'; ctx.font='10px ui-monospace,monospace';
+    ctx.fillText(spanW.toFixed(1)+' m', v.ox+spanW*v.scale/2-12, v.oy-22);
+    ctx.fillText('front of stage', v.ox+spanW*v.scale/2-30, v.oy+spanD*v.scale+28);
+    if(spanD>0.01){ ctx.save(); ctx.translate(v.ox-24, v.oy+spanD*v.scale/2+12); ctx.rotate(-Math.PI/2); ctx.fillText(spanD.toFixed(1)+' m',0,0); ctx.restore(); }
+    var showIds = count<=150 && v.scale>14;
     for(var n=0;n<count;n++){
-      var c = n%cols, r = Math.floor(n/cols);
-      var x = ox + (cols>1 ? c*layout.pitchX*scale : 0);
-      var y = oy + (rows>1 ? r*layout.pitchZ*scale : 0);
       var wch = winchData[n];
-      ctx.beginPath(); ctx.arc(x, y, Math.max(2, Math.min(5, scale*0.12)), 0, Math.PI*2);
-      ctx.fillStyle = (wch.status!=='on') ? 'rgba(216,74,56,.85)' : 'rgba(196,196,190,.75)';
+      var pt = planToPx(v, fixturePlanPos(n));
+      var r = Math.max(3, Math.min(6, v.scale*0.14));
+      if(laySel[wch.id]){
+        ctx.beginPath(); ctx.arc(pt.x, pt.y, r+3.5, 0, Math.PI*2);
+        ctx.strokeStyle='rgba(85,144,217,.95)'; ctx.lineWidth=1.6; ctx.stroke();
+      }
+      ctx.beginPath(); ctx.arc(pt.x, pt.y, r, 0, Math.PI*2);
+      ctx.fillStyle = (wch.status!=='on') ? 'rgba(216,74,56,.85)'
+        : (typeof wch.homePos==='number' ? 'rgba(240,196,90,.9)' : 'rgba(196,196,190,.75)');
       ctx.fill();
+      if(showIds){ ctx.fillStyle='rgba(156,156,152,.65)'; ctx.fillText(String(wch.id), pt.x+r+3, pt.y+3); }
     }
-    if(summary) summary.textContent = count+' fixture'+(count>1?'s':'')+' · '+cols+' wide × '+rows+' row'+(rows>1?'s':'')+' · rig '+spanW.toFixed(1)+' × '+rigD.toFixed(1)+' m · truss at '+(+layout.trussH).toFixed(1)+' m';
+    /* live preview of the shape or band being dragged */
+    if(layDrag && layDrag.kind==='shape'){
+      var a = planToPx(v, {x:layDrag.x0, z:layDrag.z0}), b2 = planToPx(v, {x:layDrag.x1, z:layDrag.z1});
+      ctx.strokeStyle='rgba(85,144,217,.8)'; ctx.lineWidth=1.4; ctx.setLineDash([5,4]);
+      ctx.beginPath();
+      if(layDrag.tool==='line'){ ctx.moveTo(a.x,a.y); ctx.lineTo(b2.x,b2.y); }
+      else if(layDrag.tool==='circle'){ ctx.arc(a.x, a.y, Math.hypot(b2.x-a.x, b2.y-a.y), 0, Math.PI*2); }
+      else if(layDrag.tool==='curve'){
+        var cpt = curveCtrl({x:layDrag.x0,z:layDrag.z0},{x:layDrag.x1,z:layDrag.z1});
+        var cpx = planToPx(v, cpt);
+        ctx.moveTo(a.x,a.y); ctx.quadraticCurveTo(cpx.x, cpx.y, b2.x, b2.y);
+      }
+      ctx.stroke(); ctx.setLineDash([]);
+    }
+    if(layDrag && layDrag.kind==='band'){
+      ctx.strokeStyle='rgba(85,144,217,.8)'; ctx.fillStyle='rgba(85,144,217,.12)';
+      var bx = Math.min(layDrag.px0,layDrag.px1), by = Math.min(layDrag.py0,layDrag.py1);
+      var bw = Math.abs(layDrag.px1-layDrag.px0), bh = Math.abs(layDrag.py1-layDrag.py0);
+      ctx.fillRect(bx,by,bw,bh); ctx.strokeRect(bx,by,bw,bh);
+    }
+    if(summary){
+      summary.textContent = layoutIsCustom()
+        ? count+' fixture'+(count>1?'s':'')+' · custom placement · rig '+spanW.toFixed(1)+' × '+spanD.toFixed(1)+' m · truss at '+(+layout.trussH).toFixed(1)+' m'
+        : count+' fixture'+(count>1?'s':'')+' · '+Math.max(1,layout.cols|0)+' wide grid · rig '+spanW.toFixed(1)+' × '+spanD.toFixed(1)+' m · truss at '+(+layout.trussH).toFixed(1)+' m';
+    }
+    var info = document.getElementById('laySelInfo');
+    if(info) info.textContent = laySelCount()
+      ? laySelCount()+' selected — drag to move (Custom), shift-click extends the range'
+      : '0 selected — click a fixture; shift-click another to select the range between them';
+  }
+  function curveCtrl(p0, p1){
+    var bend = +((document.getElementById('layBend')||{}).value) || 0;
+    var mx2 = (p0.x+p1.x)/2, mz2 = (p0.z+p1.z)/2;
+    var dx = p1.x-p0.x, dz = p1.z-p0.z, len = Math.hypot(dx,dz)||1;
+    /* control point = chord midpoint pushed out perpendicular by 2×bend
+       (quadratic curves reach half the control offset at their apex) */
+    return { x: mx2 + (-dz/len)*bend*2, z: mz2 + (dx/len)*bend*2 };
   }
   function applyLayout(){
+    invalidateRanks();
     if(rebuildRig) rebuildRig();
     else { GRID_COLS = Math.max(1, layout.cols|0); GRID_ROWS = Math.max(1, Math.ceil(winchData.length/GRID_COLS) || 1); }
     drawLayoutPlan();
@@ -3133,6 +3264,207 @@
         logLine('Layout: '+GRID_COLS+' wide, '+layout.pitchX+' × '+layout.pitchZ+' m spacing, truss '+layout.trussH+' m');
       });
     });
+    /* mode: grid vs custom placement */
+    var setLayModeSeg = makeSeg('layModeSeg','layModeThumb','data-laymode', function(v2){
+      pushUndo('layout mode','laymode');
+      layout.mode = v2==='custom' ? 'custom' : 'grid';
+      if(layout.mode==='custom'){
+        /* seed custom positions from the grid the first time */
+        winchData.forEach(function(w2, i2){ if(typeof w2.lx!=='number'){ var pp2 = (function(){ var m2 = layout.mode; layout.mode='grid'; var r2 = fixturePlanPos(i2); layout.mode=m2; return r2; })(); w2.lx = pp2.x; w2.lz = pp2.z; } });
+      }
+      document.getElementById('layCustomTools').style.display = layout.mode==='custom' ? '' : 'none';
+      applyLayout();
+      logLine('Layout: '+(layout.mode==='custom' ? 'custom placement — drag fixtures or use the arrange tools' : 'grid placement'));
+    });
+    refreshLayoutMode = function(){
+      if(setLayModeSeg) setLayModeSeg(layoutIsCustom() ? 'custom' : 'grid');
+      document.getElementById('layCustomTools').style.display = layoutIsCustom() ? '' : 'none';
+    };
+    refreshLayoutMode();
+
+    /* arrange tool picker */
+    Array.prototype.forEach.call(document.querySelectorAll('.lay-tool'), function(b){
+      b.addEventListener('click', function(){
+        layTool = b.getAttribute('data-laytool');
+        Array.prototype.forEach.call(document.querySelectorAll('.lay-tool'), function(x){ x.classList.toggle('on', x===b); });
+      });
+    });
+    document.getElementById('layBend').addEventListener('input', function(){
+      document.getElementById('layBendVal').textContent = (+this.value).toFixed(1)+' m';
+      drawLayoutPlan();
+    });
+    document.getElementById('laySelAllBtn').addEventListener('click', function(){
+      laySel = {}; winchData.forEach(function(w2){ laySel[w2.id]=true; }); drawLayoutPlan();
+    });
+    document.getElementById('laySelNoneBtn').addEventListener('click', function(){ laySel = {}; drawLayoutPlan(); });
+    document.getElementById('laySeedBtn').addEventListener('click', function(){
+      pushUndo('arrange');
+      var m3 = layout.mode; layout.mode='grid';
+      winchData.forEach(function(w2, i2){ var pp3 = fixturePlanPos(i2); w2.lx = pp3.x; w2.lz = pp3.z; });
+      layout.mode = m3;
+      applyLayout();
+      logLine('Layout: custom positions re-seeded from the grid');
+    });
+
+    /* start heights — the rest position when nothing drives a fixture */
+    var homeInp = document.getElementById('layHomeInp');
+    function homeTargets(){
+      var idxs = laySelIndices();
+      return idxs.length ? idxs.map(function(i2){ return winchData[i2]; }) : winchData.slice();
+    }
+    homeInp.addEventListener('input', function(){
+      var t2 = homeTargets()[0];
+      document.getElementById('layHomeM').textContent = t2 ? dmxToM(Math.max(0,Math.min(255,+homeInp.value||0)), modelById(t2.modelId)).toFixed(2)+' m' : '';
+    });
+    document.getElementById('layHomeApplyBtn').addEventListener('click', function(){
+      var v2 = Math.max(0, Math.min(255, Math.round(+homeInp.value)||0));
+      var tg = homeTargets();
+      pushUndo('start height');
+      tg.forEach(function(w2){ w2.homePos = v2; });
+      drawLayoutPlan();
+      logLine('Start height '+v2+' set on '+tg.length+' fixture'+(tg.length>1?'s':'')+' — they rest there when idle');
+    });
+    document.getElementById('layHomeResetBtn').addEventListener('click', function(){
+      var tg = homeTargets();
+      pushUndo('start height');
+      tg.forEach(function(w2){ delete w2.homePos; });
+      drawLayoutPlan();
+      logLine('Start height reset on '+tg.length+' fixture'+(tg.length>1?'s':'')+' — they rest at their top limit');
+    });
+
+    /* plan canvas interaction */
+    var planCv = document.getElementById('layoutPlan');
+    function planXY(e){
+      var r2 = planCv.getBoundingClientRect();
+      return { px: e.clientX-r2.left, py: e.clientY-r2.top };
+    }
+    function currentView(){
+      return computePlanView(planCv.clientWidth||520, planCv.clientHeight||300);
+    }
+    function hitFixture(v2, px, py){
+      var best = null, bestD = 10;
+      for(var i2=0;i2<winchData.length;i2++){
+        var pt2 = planToPx(v2, fixturePlanPos(i2));
+        var d2 = Math.hypot(pt2.x-px, pt2.y-py);
+        if(d2<bestD){ bestD = d2; best = i2; }
+      }
+      return best;
+    }
+    function snapM(val){ return document.getElementById('laySnap').checked ? Math.round(val*10)/10 : val; }
+    planCv.addEventListener('pointerdown', function(e){
+      if(!winchData.length) return;
+      try { planCv.setPointerCapture(e.pointerId); } catch(_e){ /* synthetic events */ }
+      var xy = planXY(e), v2 = currentView();
+      if(layoutIsCustom() && layTool!=='select'){
+        var pm = pxToPlan(v2, xy.px, xy.py);
+        layDrag = { kind:'shape', tool:layTool, view:v2, x0:pm.x, z0:pm.z, x1:pm.x, z1:pm.z };
+        return;
+      }
+      var hit = hitFixture(v2, xy.px, xy.py);
+      if(hit!==null){
+        var wid = winchData[hit].id;
+        if(e.shiftKey && layAnchor!==null){
+          /* patch-order RANGE from the anchor to here */
+          var ai = winchData.findIndex(function(w2){ return w2.id===layAnchor; });
+          if(ai<0) ai = hit;
+          var lo = Math.min(ai, hit), hi2 = Math.max(ai, hit);
+          for(var k2=lo;k2<=hi2;k2++) laySel[winchData[k2].id] = true;
+        } else {
+          if(!laySel[wid] && !e.shiftKey) laySel = {};
+          laySel[wid] = true;
+          layAnchor = wid;
+        }
+        if(layoutIsCustom()){
+          var pm2 = pxToPlan(v2, xy.px, xy.py);
+          layDrag = { kind:'move', view:v2, lastX:pm2.x, lastZ:pm2.z, moved:false };
+        }
+        drawLayoutPlan();
+        return;
+      }
+      layDrag = { kind:'band', view:v2, px0:xy.px, py0:xy.py, px1:xy.px, py1:xy.py, additive:e.shiftKey };
+    });
+    planCv.addEventListener('pointermove', function(e){
+      if(!layDrag) return;
+      var xy = planXY(e);
+      if(layDrag.kind==='band'){ layDrag.px1 = xy.px; layDrag.py1 = xy.py; drawLayoutPlan(); return; }
+      var pm = pxToPlan(layDrag.view, xy.px, xy.py);
+      if(layDrag.kind==='shape'){ layDrag.x1 = pm.x; layDrag.z1 = pm.z; drawLayoutPlan(); return; }
+      /* move the whole selection by the pointer delta */
+      var dx = pm.x-layDrag.lastX, dz = pm.z-layDrag.lastZ;
+      if(!dx && !dz) return;
+      if(!layDrag.moved){ pushUndo('arrange','laymove'); layDrag.moved = true; }
+      layDrag.lastX = pm.x; layDrag.lastZ = pm.z;
+      laySelIndices().forEach(function(i2){
+        var w2 = winchData[i2];
+        fixturePlanPos(i2); /* ensure lx seeded */
+        w2.lx = snapM(w2.lx+dx); w2.lz = snapM(w2.lz+dz);
+      });
+      invalidateRanks();
+      if(rebuildRig) rebuildRig();
+      drawLayoutPlan();
+    });
+    planCv.addEventListener('pointerup', function(e){
+      if(!layDrag) return;
+      var d2 = layDrag; layDrag = null;
+      if(d2.kind==='band'){
+        if(!d2.additive && Math.abs(d2.px1-d2.px0)<4 && Math.abs(d2.py1-d2.py0)<4){ laySel = {}; }
+        else {
+          if(!d2.additive) laySel = {};
+          var x0 = Math.min(d2.px0,d2.px1), x1 = Math.max(d2.px0,d2.px1);
+          var y0 = Math.min(d2.py0,d2.py1), y1 = Math.max(d2.py0,d2.py1);
+          winchData.forEach(function(w2, i2){
+            var pt2 = planToPx(d2.view, fixturePlanPos(i2));
+            if(pt2.x>=x0 && pt2.x<=x1 && pt2.y>=y0 && pt2.y<=y1) laySel[w2.id] = true;
+          });
+        }
+        drawLayoutPlan();
+        return;
+      }
+      if(d2.kind==='shape'){
+        applyArrangement(d2);
+        return;
+      }
+      if(d2.kind==='move' && d2.moved) applyLayout();
+    });
+    function applyArrangement(d2){
+      var idxs = laySelIndices();
+      if(idxs.length<2) idxs = winchData.map(function(_w, i2){ return i2; });
+      var n2 = idxs.length;
+      if(n2<2){ drawLayoutPlan(); return; }
+      if(d2.tool!=='circle' && Math.hypot(d2.x1-d2.x0, d2.z1-d2.z0)<0.05){ drawLayoutPlan(); return; }
+      pushUndo('arrange');
+      var p0 = {x:d2.x0, z:d2.z0}, p1 = {x:d2.x1, z:d2.z1};
+      idxs.forEach(function(i2, k2){
+        var t2 = k2/(n2-1), w2 = winchData[i2], nx, nz;
+        if(d2.tool==='line'){
+          nx = p0.x+(p1.x-p0.x)*t2; nz = p0.z+(p1.z-p0.z)*t2;
+        } else if(d2.tool==='circle'){
+          var rr2 = Math.max(0.3, Math.hypot(p1.x-p0.x, p1.z-p0.z));
+          var a0 = Math.atan2(p1.z-p0.z, p1.x-p0.x);
+          var ang = a0 + (k2/n2)*Math.PI*2; /* even spacing, no doubled endpoint */
+          nx = p0.x+Math.cos(ang)*rr2; nz = p0.z+Math.sin(ang)*rr2;
+        } else { /* curve — quadratic bezier */
+          var cp = curveCtrl(p0, p1);
+          var mt = 1-t2;
+          nx = mt*mt*p0.x + 2*mt*t2*cp.x + t2*t2*p1.x;
+          nz = mt*mt*p0.z + 2*mt*t2*cp.z + t2*t2*p1.z;
+        }
+        w2.lx = snapM(nx); w2.lz = snapM(nz);
+      });
+      applyLayout();
+      logLine('Arranged '+n2+' fixtures on a '+d2.tool);
+    }
+
+    /* read-only introspection for tests + remote support */
+    window.__blkLayout = {
+      mode: function(){ return layout.mode; },
+      selCount: laySelCount,
+      pos: function(i2){ return fixturePlanPos(i2); },
+      home: function(i2){ return winchData[i2] ? winchData[i2].homePos : undefined; },
+      dotPx: function(i2){ return planToPx(currentView(), fixturePlanPos(i2)); },
+      count: function(){ return winchData.length; }
+    };
+
     /* the rail switch fires a resize event, so the plan redraws when the
        Layout view becomes visible and gets a real canvas size */
     window.addEventListener('resize', drawLayoutPlan);
@@ -4598,7 +4930,13 @@
 
     for(var i=0;i<n;i++){
       var w = winchData[i], o = engState.out[i];
-      var col = i%GRID_COLS, row = Math.floor(i/GRID_COLS);
+      var col, row, colsN, rowsN;
+      if(layoutIsCustom()){
+        ensureRanks();
+        col = fxRankX[i]; colsN = n; row = fxRankZ[i]; rowsN = n;
+      } else {
+        col = i%GRID_COLS; colsN = GRID_COLS; row = Math.floor(i/GRID_COLS); rowsN = GRID_ROWS;
+      }
       var minLimit = Math.min(w.topLimit, w.bottomLimit), maxLimit = Math.max(w.topLimit, w.bottomLimit);
       /* manual test control: the SELECTED fixture while Test Control is
          enabled, or a fixture mid-calibration run — driven by its test
@@ -4645,7 +4983,7 @@
 
         /* position: waveform → drop in mm → DMX demand → scaled into this
            channel's Top–Bottom window (limits compress, never clip) */
-        var phase = combinedPhase(col, row, GRID_COLS, GRID_ROWS, mP.mx, mP.my)*mS;
+        var phase = combinedPhase(col, row, colsN, rowsN, mP.mx, mP.my)*mS;
         var wv;
         if(mP.shape==='bitmap'){
           var mLev = bitmapLevel(mP, col, row, mSel.time*(mSel.live?mP.rate/100:0)*WAVE_FREQ + mP.phase/360);
@@ -4675,13 +5013,17 @@
           /* after a reset, keep holding until a source addresses this
              fixture's motion, or HOME ALL recalls it */
           target = stopHold[w.id];
+        } else if(!motionClaimed){
+          /* nothing driving this fixture: rest at its own start height
+             (Layout view), defaulting to the top limit */
+          target = (typeof w.homePos==='number') ? w.homePos : w.topLimit;
         } else {
           target = w.topLimit + (demand/255)*(w.bottomLimit - w.topLimit);
           delete stopHold[w.id]; /* a live source owns this fixture again */
         }
 
         /* colour — Sync locks to its OWN cue's motion */
-        var cph = combinedPhase(col, row, GRID_COLS, GRID_ROWS, cSrc.mx||cP.mx, cSrc.my||cP.my)*(cSync?distSpread(cCue.motion):distSpread(cP));
+        var cph = combinedPhase(col, row, colsN, rowsN, cSrc.mx||cP.mx, cSrc.my||cP.my)*(cSync?distSpread(cCue.motion):distSpread(cP));
         var cCyc = cSync ? cSel.time*(cSel.live?cCue.motion.rate/100:0)*WAVE_FREQ + cCue.motion.phase/360
                          : cSel.time*(cSel.live?0.3:0);
         var bmRgb = cP.shape==='bitmap' ? bitmapSample(cP, col, row, cCyc) : null;
@@ -4702,7 +5044,7 @@
         }
 
         /* dimmer — same gamma on screen and on the wire */
-        var dph = combinedPhase(col, row, GRID_COLS, GRID_ROWS, dSrc.mx, dSrc.my)*(dSync?distSpread(dCue.motion):distSpread(dP));
+        var dph = combinedPhase(col, row, colsN, rowsN, dSrc.mx, dSrc.my)*(dSync?distSpread(dCue.motion):distSpread(dP));
         var dwv;
         if(dP.shape==='bitmap'){
           var dLev = bitmapLevel(dP, col, row, dSel.time*(dSel.live?dSrc.rate/100:0)*WAVE_FREQ + dSrc.phase/360);
@@ -4842,11 +5184,22 @@
       GRID_COLS = Math.max(1, layout.cols|0);
       N = winchData.length;
       GRID_ROWS = Math.max(1, Math.ceil(N/GRID_COLS) || 1); /* rows follow the patch count */
-      halfW = Math.max(0.5, ((GRID_COLS-1)*layout.pitchX)/2);
-      halfD = Math.max(0.5, ((GRID_ROWS-1)*layout.pitchZ)/2);
       trussY = Math.max(1, +layout.trussH || 5.2);
+      /* world XZ per fixture, centred on the rig's real bounding box —
+         identical maths for grid and custom shapes */
       fixtureBase = [];
-      for(var f3=0; f3<N; f3++){ fixtureBase.push({ col:f3%GRID_COLS, row:Math.floor(f3/GRID_COLS) }); }
+      var minX=1e9, maxX=-1e9, minZ=1e9, maxZ=-1e9;
+      for(var f3=0; f3<N; f3++){
+        var pp = fixturePlanPos(f3);
+        fixtureBase.push(pp);
+        if(pp.x<minX)minX=pp.x; if(pp.x>maxX)maxX=pp.x;
+        if(pp.z<minZ)minZ=pp.z; if(pp.z>maxZ)maxZ=pp.z;
+      }
+      if(!N){ minX=maxX=minZ=maxZ=0; }
+      var cx = (minX+maxX)/2, cz = (minZ+maxZ)/2;
+      fixtureBase.forEach(function(pp){ pp.wx = pp.x-cx; pp.wz = pp.z-cz; });
+      halfW = Math.max(0.5, (maxX-minX)/2);
+      halfD = Math.max(0.5, (maxZ-minZ)/2);
       fixturePos = new Float32Array(N*3); fixtureColor = new Float32Array(N*3); fixtureScale = new Float32Array(N*3);
       fixtureLimitBlend = new Float32Array(N);
       staticDirty = true; /* floor grid + truss follow the new extents */
@@ -4959,8 +5312,7 @@
 
         for(var i=0;i<N;i++){
           var b = fixtureBase[i];
-          var x = GRID_COLS>1 ? -halfW + (b.col/(GRID_COLS-1))*halfW*2 : 0;
-          var z = GRID_ROWS>1 ? -halfD + (b.row/(GRID_ROWS-1))*halfD*2 : 0;
+          var x = b.wx, z = b.wz;
           var wch = winchData[i];
           var fitting = fittingById(wch.fittingId);
           var o = frame[i];
@@ -5264,8 +5616,9 @@
       }
       if(d.layout){
         ['cols','pitchX','pitchZ','trussH'].forEach(function(k){ if(typeof d.layout[k]==='number') layout[k] = d.layout[k]; });
+        layout.mode = d.layout.mode==='custom' ? 'custom' : 'grid';
       }
-      refreshLayoutInputs(); applyLayout();
+      refreshLayoutInputs(); if(refreshLayoutMode) refreshLayoutMode(); applyLayout();
       if(typeof d.selectedCueId === 'number' && cueById(d.selectedCueId)) selectedCueId = d.selectedCueId;
       if(Array.isArray(d.pages) && d.pages.length){ pages.length = 0; d.pages.forEach(function(pg){ pages.push(pg); }); }
       if(Array.isArray(d.groups)){ groups.length = 0; d.groups.forEach(function(g){ groups.push(g); }); }
