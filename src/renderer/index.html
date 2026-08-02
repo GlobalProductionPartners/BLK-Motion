@@ -6269,11 +6269,11 @@
       gl.bufferData(gl.ARRAY_BUFFER, cableData, gl.DYNAMIC_DRAW);
     }
     var clothBuf = gl.createBuffer(), clothIdxBuf = gl.createBuffer();
-    var clothRes = 0, clothVertData = null, clothIdxCount = 0;
+    var clothRX = 0, clothRZ = 0, clothVertData = null, clothIdxCount = 0;
     var clothGX = null, clothGZ = null;      /* world XZ of each grid vertex */
     var clothPin = null, clothPinW = null;   /* K pin indices + weights per vertex */
-    var clothNear = null;                    /* normalised distance to the nearest pin */
-    var clothY = null, clothScratch = null;  /* reused height buffers — no per-frame allocation */
+    var clothNear = null;                    /* 0 at a motor, 1 a half-span away */
+    var clothY = null, clothY0 = null, clothScratch = null; /* reused height buffers */
     var clothDirty = true;
     var CLOTH_K = 6;
     function buildClothMesh(){
@@ -6290,26 +6290,45 @@
         if(b.wx<minX)minX=b.wx; if(b.wx>maxX)maxX=b.wx;
         if(b.wz<minZ)minZ=b.wz; if(b.wz>maxZ)maxZ=b.wz;
       });
-      /* typical pin spacing sets both the overhang and the sag scale */
-      var area = Math.max(0.25, (maxX-minX)*(maxZ-minZ));
-      var spacing = Math.max(0.35, Math.sqrt(area/Math.max(1,pins.length)));
-      var margin = spacing*0.25; /* a modest hem past the outermost motors */
+      /* spacing = MEDIAN NEAREST-NEIGHBOUR distance. Deriving it from the
+         bounding-box area collapses to nothing for a rig hung in a line —
+         which made every vertex sag fully and never snap back to its motor,
+         so the fabric hung clear of the cables. */
+      var nn = pins.map(function(i){
+        var bi = fixtureBase[i], best = Infinity;
+        pins.forEach(function(j){
+          if(j===i) return;
+          var bj = fixtureBase[j], dx = bi.wx-bj.wx, dz = bi.wz-bj.wz;
+          var d2 = dx*dx+dz*dz;
+          if(d2 < best) best = d2;
+        });
+        return Math.sqrt(best);
+      }).sort(function(a,b){ return a-b; });
+      var spacing = Math.max(0.15, nn[Math.floor(nn.length/2)] || 0.8);
+      var margin = spacing*0.5;
       minX-=margin; maxX+=margin; minZ-=margin; maxZ+=margin;
+      var spanX = Math.max(0.05, maxX-minX), spanZ = Math.max(0.05, maxZ-minZ);
 
-      clothRes = pins.length<=64 ? 34 : pins.length<=200 ? 26 : 18;
-      var R = clothRes, V = R*R;
+      /* cells about half a pin-spacing across, per axis — a line of winches
+         gets a long thin ribbon, not a coarse square */
+      var cell = spacing*0.45;
+      clothRX = Math.max(6, Math.min(90, Math.round(spanX/cell)+1));
+      clothRZ = Math.max(6, Math.min(90, Math.round(spanZ/cell)+1));
+      while(clothRX*clothRZ > 7000){ clothRX = Math.max(6, clothRX>>1); clothRZ = Math.max(6, clothRZ>>1); }
+
+      var RX = clothRX, RZ = clothRZ, V = RX*RZ;
       clothGX = new Float32Array(V); clothGZ = new Float32Array(V);
       clothPin = new Int32Array(V*CLOTH_K); clothPinW = new Float32Array(V*CLOTH_K);
       clothNear = new Float32Array(V);
-      clothY = new Float32Array(V); clothScratch = new Float32Array(V);
+      clothY = new Float32Array(V); clothY0 = new Float32Array(V); clothScratch = new Float32Array(V);
       clothVertData = new Float32Array(V*9);
 
       var d = new Array(pins.length);
-      for(var gz=0; gz<R; gz++){
-        for(var gx=0; gx<R; gx++){
-          var vi = gz*R+gx;
-          var px = minX + (maxX-minX)*(gx/(R-1));
-          var pz = minZ + (maxZ-minZ)*(gz/(R-1));
+      for(var gz=0; gz<RZ; gz++){
+        for(var gx=0; gx<RX; gx++){
+          var vi = gz*RX+gx;
+          var px = minX + spanX*(RX>1 ? gx/(RX-1) : 0.5);
+          var pz = minZ + spanZ*(RZ>1 ? gz/(RZ-1) : 0.5);
           clothGX[vi]=px; clothGZ[vi]=pz;
           for(var k=0;k<pins.length;k++){
             var b2 = fixtureBase[pins[k]];
@@ -6324,69 +6343,71 @@
             clothPinW[vi*CLOTH_K+q2] = ws[q2]/sum;
           }
           for(var q3=kn;q3<CLOTH_K;q3++){ clothPin[vi*CLOTH_K+q3] = -1; clothPinW[vi*CLOTH_K+q3] = 0; }
-          /* 0 at a pin, 1 half a span away — how much this point can droop */
-          clothNear[vi] = Math.min(1, Math.sqrt(d[0].d2)/(spacing*0.5));
+          clothNear[vi] = Math.min(1, Math.sqrt(d[0].d2)/(spacing*0.6));
         }
       }
       var idx = [];
-      for(var rz=0; rz<R-1; rz++){
-        for(var rx=0; rx<R-1; rx++){
-          var a = rz*R+rx, b3 = a+1, c = a+R, e = c+1;
+      for(var rz=0; rz<RZ-1; rz++){
+        for(var rx=0; rx<RX-1; rx++){
+          var a = rz*RX+rx, b3 = a+1, c = a+RX, e = c+1;
           idx.push(a,c,b3, b3,c,e);
         }
       }
-      var idxArr = (V > 65535) ? new Uint32Array(idx) : new Uint16Array(idx);
       clothIdxCount = idx.length;
-      clothIdxType = (V > 65535) ? gl.UNSIGNED_INT : gl.UNSIGNED_SHORT;
+      clothIdxType = gl.UNSIGNED_SHORT;
       gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, clothIdxBuf);
-      gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, idxArr, gl.STATIC_DRAW);
+      gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(idx), gl.STATIC_DRAW);
     }
     var clothIdxType = gl.UNSIGNED_SHORT;
-    /* per frame: blend the pinned heights + colours, droop, re-derive normals */
+    /* per frame: blend the pinned heights + colours, droop, relax, then pull
+       the fabric back onto the cables so it hangs FROM them with no gap */
     function updateCloth(){
       if(!clothVertData) return;
-      var R = clothRes, V = R*R, sag = +layout.cloth.sag || 0;
-      var ys = clothY;
+      var RX = clothRX, RZ = clothRZ, V = RX*RZ, sag = +layout.cloth.sag || 0;
+      var ys = clothY, y0 = clothY0;
       for(var vi=0; vi<V; vi++){
         var y=0, r=0, g=0, b=0;
         for(var k=0;k<CLOTH_K;k++){
           var pi = clothPin[vi*CLOTH_K+k];
           if(pi < 0) break;
           var wgt = clothPinW[vi*CLOTH_K+k];
-          y += fixturePos[pi*3+1]*wgt;
+          y += fixtureHangY[pi]*wgt;
           r += fixtureColor[pi*3]*wgt; g += fixtureColor[pi*3+1]*wgt; b += fixtureColor[pi*3+2]*wgt;
         }
+        y0[vi] = y;
         ys[vi] = y - sag*clothNear[vi];
         var o = vi*9;
         clothVertData[o]   = clothGX[vi];
-        clothVertData[o+1] = ys[vi];
         clothVertData[o+2] = clothGZ[vi];
         clothVertData[o+6] = r; clothVertData[o+7] = g; clothVertData[o+8] = b;
       }
-      /* relax the weave: inverse-distance alone cusps at every pin, which
-         reads as a circus tent rather than fabric. Two light Laplacian passes
-         round the folds while the motors still drive the shape. */
+      /* relax the weave so it folds like fabric instead of cusping at pins */
       for(var pass=0; pass<2; pass++){
         clothScratch.set(ys);
-        for(var sz=0; sz<R; sz++){
-          for(var sx=0; sx<R; sx++){
-            var si = sz*R+sx;
-            var nsum = clothScratch[sz*R+Math.max(0,sx-1)] + clothScratch[sz*R+Math.min(R-1,sx+1)]
-                     + clothScratch[Math.max(0,sz-1)*R+sx] + clothScratch[Math.min(R-1,sz+1)*R+sx];
+        for(var sz=0; sz<RZ; sz++){
+          for(var sx=0; sx<RX; sx++){
+            var si = sz*RX+sx;
+            var nsum = clothScratch[sz*RX+Math.max(0,sx-1)] + clothScratch[sz*RX+Math.min(RX-1,sx+1)]
+                     + clothScratch[Math.max(0,sz-1)*RX+sx] + clothScratch[Math.min(RZ-1,sz+1)*RX+sx];
             ys[si] = clothScratch[si]*0.45 + (nsum/4)*0.55;
           }
         }
       }
-      for(var wi=0; wi<V; wi++) clothVertData[wi*9+1] = ys[wi];
-
+      /* smoothing drags the pinned points down with their neighbours; re-assert
+         the cable heights near each motor so the cloth meets every string */
+      for(var pi2=0; pi2<V; pi2++){
+        var grip = 1 - clothNear[pi2];
+        if(grip > 0) ys[pi2] = ys[pi2]*(1-grip) + y0[pi2]*grip;
+        clothVertData[pi2*9+1] = ys[pi2];
+      }
       /* normals from the height field — central differences on the grid */
       var stepX = (clothGX[1]-clothGX[0]) || 0.1;
-      var stepZ = (clothGZ[R]-clothGZ[0]) || 0.1;
-      for(var gz2=0; gz2<R; gz2++){
-        for(var gx2=0; gx2<R; gx2++){
-          var i2 = gz2*R+gx2;
-          var xl = ys[gz2*R+Math.max(0,gx2-1)], xr = ys[gz2*R+Math.min(R-1,gx2+1)];
-          var zl = ys[Math.max(0,gz2-1)*R+gx2], zr = ys[Math.min(R-1,gz2+1)*R+gx2];
+      var stepZ = (RZ>1 ? clothGZ[RX]-clothGZ[0] : 0.1) || 0.1;
+      for(var gz2=0; gz2<RZ; gz2++){
+        for(var gx2=0; gx2<RX; gx2++){
+          var i2 = gz2*RX+gx2;
+          var xl = ys[gz2*RX+Math.max(0,gx2-1)], xr = ys[gz2*RX+Math.min(RX-1,gx2+1)];
+          var zl = ys[Math.max(0,gz2-1)*RX+gx2], zr = ys[Math.min(RZ-1,gz2+1)*RX+gx2];
           var dydx = (xr-xl)/(stepX*2), dydz = (zr-zl)/(stepZ*2);
           var nx = -dydx, ny = 1, nz = -dydz;
           var len = Math.sqrt(nx*nx+ny*ny+nz*nz) || 1;
@@ -6583,18 +6604,6 @@
         gl.enableVertexAttribArray(sLoc.aPos); gl.vertexAttribPointer(sLoc.aPos,3,gl.FLOAT,false,0,0);
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, sphereIdxBuf);
         gl.uniform1f(sLoc.uGlow, 0.0);
-        if(layout.showRig){
-          /* the motor head itself: a small neutral body so the pin point is
-             readable even when the cloth hides the fittings */
-          gl.uniform1f(sLoc.uEmis, 0.0);
-          gl.uniform3f(sLoc.uColor, 0.42, 0.42, 0.46);
-          for(var mk=0; mk<N; mk++){
-            if(winchData[mk].inCase) continue;
-            gl.uniform3f(sLoc.uCenter, fixtureBase[mk].wx, fixtureHangY[mk], fixtureBase[mk].wz);
-            gl.uniform3f(sLoc.uScale, 0.05, 0.05, 0.05);
-            gl.drawElements(gl.TRIANGLES, sphereIdxCount, gl.UNSIGNED_SHORT, 0);
-          }
-        }
         for(var s3=0; layout.cloth.on ? false : s3<N; s3++){
           var bl = 0.3*fixtureColor[s3*3] + 0.6*fixtureColor[s3*3+1] + 0.1*fixtureColor[s3*3+2];
           gl.uniform1f(sLoc.uEmis, Math.min(1, bl*1.6)); /* lit = emissive body, dark = matte silhouette */
