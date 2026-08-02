@@ -87,6 +87,32 @@ function buildAppMenu() {
           accelerator: 'CmdOrCtrl+S',
           click: () => mainWindow && mainWindow.webContents.send('menu:save-show')
         },
+        {
+          label: 'Save Show As…',
+          accelerator: 'Shift+CmdOrCtrl+S',
+          click: () => mainWindow && mainWindow.webContents.send('menu:save-show-as')
+        },
+        { type: 'separator' },
+        {
+          label: 'Recover Autosave',
+          click: () => {
+            if (!mainWindow) return;
+            try {
+              const st = fs.statSync(autosavePath());
+              const json = fs.readFileSync(autosavePath(), 'utf8');
+              mainWindow.webContents.send('menu:recover-autosave', {
+                json,
+                savedAt: st.mtime.toLocaleString()
+              });
+            } catch (_err) {
+              dialog.showMessageBox(mainWindow, {
+                type: 'info',
+                message: 'No autosave found',
+                detail: 'Autosaves are written every minute while a show has unsaved changes.'
+              });
+            }
+          }
+        },
         { type: 'separator' },
         isMac ? { role: 'close' } : { role: 'quit' }
       ]
@@ -94,7 +120,17 @@ function buildAppMenu() {
     {
       label: 'Edit',
       submenu: [
-        { role: 'undo' }, { role: 'redo' }, { type: 'separator' },
+        {
+          label: 'Undo',
+          accelerator: 'CmdOrCtrl+Z',
+          click: () => mainWindow && mainWindow.webContents.send('menu:undo')
+        },
+        {
+          label: 'Redo',
+          accelerator: 'Shift+CmdOrCtrl+Z',
+          click: () => mainWindow && mainWindow.webContents.send('menu:redo')
+        },
+        { type: 'separator' },
         { role: 'cut' }, { role: 'copy' }, { role: 'paste' }, { role: 'selectAll' }
       ]
     },
@@ -277,6 +313,31 @@ ipcMain.handle('show:save', async (_event, { defaultName, json }) => {
   if (result.canceled || !result.filePath) return { ok: false };
   fs.writeFileSync(result.filePath, json, 'utf8');
   return { ok: true, filePath: result.filePath };
+});
+
+// Silent save to a known path — used by plain Save once a file is open
+ipcMain.handle('show:save-to', (_event, { filePath, json }) => {
+  try {
+    fs.writeFileSync(filePath, json, 'utf8');
+    return { ok: true, filePath };
+  } catch (err) {
+    return { ok: false, error: String((err && err.message) || err) };
+  }
+});
+
+// Crash-safety net: the renderer streams the whole show here once a minute
+// while dirty. Kept OUTSIDE the user's documents — recovery is explicit.
+function autosavePath() {
+  return path.join(app.getPath('userData'), 'autosave.blkshow');
+}
+
+ipcMain.handle('show:autosave', (_event, { json }) => {
+  try {
+    fs.writeFileSync(autosavePath(), json, 'utf8');
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: String((err && err.message) || err) };
+  }
 });
 
 ipcMain.handle('show:load', async () => {

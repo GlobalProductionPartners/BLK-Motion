@@ -27,8 +27,14 @@ contextBridge.exposeInMainWorld('blk', {
   },
   show: {
     save: (defaultName, json) => ipcRenderer.invoke('show:save', { defaultName, json }),
+    saveTo: (filePath, json) => ipcRenderer.invoke('show:save-to', { filePath, json }),
     load: () => ipcRenderer.invoke('show:load'),
+    autosave: (json) => ipcRenderer.invoke('show:autosave', { json }),
+    onMenuRecover: (cb) => ipcRenderer.on('menu:recover-autosave', (_e, payload) => cb(payload)),
     onMenuSave: (cb) => ipcRenderer.on('menu:save-show', () => cb()),
+    onMenuUndo: (cb) => ipcRenderer.on('menu:undo', () => cb()),
+    onMenuRedo: (cb) => ipcRenderer.on('menu:redo', () => cb()),
+    onMenuSaveAs: (cb) => ipcRenderer.on('menu:save-show-as', () => cb()),
     onMenuOpen: (cb) => ipcRenderer.on('menu:open-show', () => cb())
   },
   platform: process.platform
