@@ -54,7 +54,10 @@
   @media (prefers-reduced-motion: reduce){ *{ transition:none !important; } }
 
   /* Inputs: recessed wells, no outlines until focus */
-  input[type="number"], input[type="text"]{
+  /* `input:not([type])` matters: an input with no type attribute defaults to
+     text but is NOT matched by [type="text"], so those fell through to the
+     browser's white default */
+  input[type="number"], input[type="text"], input:not([type]){
     background:var(--recess); border:1px solid transparent; color:var(--text);
     padding:6px 8px; font-size:12px; font-family:var(--mono);
   }
@@ -92,6 +95,18 @@
   .btn-stop:hover{ background:#e85c4a; }
   .btn-stop.reset{ background:var(--yellow); color:#000; }
   .btn-stop.reset:hover{ background:#f0b64f; }
+  /* BLK brand edge: opposite corners clipped 45° — applied to the accent
+     surfaces (primary actions, STOP, activation) so the mark reads without
+     noising up every small control */
+  .flat-btn.go, #lgActivateBtn, .lic-chip{
+    clip-path: polygon(0 0, calc(100% - 7px) 0, 100% 7px, 100% 100%, 7px 100%, 0 calc(100% - 7px));
+  }
+  .btn-stop{
+    clip-path: polygon(0 0, calc(100% - 11px) 0, 100% 11px, 100% 100%, 11px 100%, 0 calc(100% - 11px));
+  }
+  .lg-card{
+    clip-path: polygon(0 0, calc(100% - 18px) 0, 100% 18px, 100% 100%, 18px 100%, 0 calc(100% - 18px));
+  }
   #btnHome{ position:relative; overflow:hidden; }
   #btnHome.arming{ color:#000; }
   #btnHome.arming::before{ content:""; position:absolute; inset:0; background:var(--yellow); z-index:-1; animation:homeArm .75s linear forwards; }
@@ -112,7 +127,7 @@
   .titlebar > .seg, .titlebar > .flat-btn{ flex:0 0 auto; }
   #pauseBtn.on{ background:var(--yellow); color:#000; font-weight:600; }
 
-  .seg{ position:relative; display:flex; background:var(--recess); padding:2px; }
+  .seg{ position:relative; display:inline-flex; align-self:flex-start; vertical-align:top; background:var(--recess); padding:2px; }
   .seg button{ position:relative; z-index:1; color:var(--text-2); font-size:11px; padding:5px 12px; white-space:nowrap; font-weight:500; }
   .seg button.active{ color:#000; font-weight:600; }
   .seg-thumb{ position:absolute; top:2px; bottom:2px; left:2px; background:var(--text); transition:transform .16s ease, width .16s ease, background .16s ease; z-index:0; }
@@ -298,7 +313,6 @@
 
   .lay-tool.on{ background:var(--text); color:#000; font-weight:600; }
   .lay-filter.on{ background:var(--text); color:#000; font-weight:600; }
-  #layModeSeg{ display:inline-flex; } /* shrink-wrap so the thumb tracks the buttons */
   #layShapeConfirm{ display:none; }
   #layShapeConfirm.on{ display:flex !important; }
   #layFixList{ max-height:190px; overflow-y:auto; border:1px solid var(--hairline); background:var(--recess); user-select:none; -webkit-user-select:none; }
@@ -370,7 +384,7 @@
   .patch-note{ flex:0 0 auto; padding:8px 14px; font-size:11.5px; color:var(--text-2); background:var(--surface-2); }
   .patch-toolbar input[type=number]{
     background:var(--recess); border:1px solid var(--hairline); color:var(--text);
-    padding:4px 5px; font-size:11.5px; font-family:var(--mono); width:44px;
+    padding:4px 6px; font-size:11.5px; font-family:var(--mono); width:64px;
   }
   .patch-note b{ color:var(--text); font-family:var(--mono); font-weight:600; }
   .patch-table-wrap{ flex:1 1 auto; overflow:auto; }
@@ -699,7 +713,7 @@
           <div class="panel-body" style="overflow-y:auto;">
             <div class="editor-head">
               <span class="cue-no mono" id="editorCueNo">—</span>
-              <input class="cue-name-input" id="cueNameInput" value="" placeholder="No cue selected">
+              <input type="text" class="cue-name-input" id="cueNameInput" value="" placeholder="No cue selected">
               <div class="editor-sub"><div><label>Category</label><div class="mono" id="editorCategory">—</div></div><div><label>Playback</label><div class="mono" id="editorPlayback">—</div></div></div>
               <div class="editor-scope" id="editorScope"></div>
               <button class="flat-btn" id="syncPhaseBtn" title="Drive Dimmer and Colour phase, rate and direction from Motion">Sync</button>
@@ -1625,12 +1639,17 @@
     var btns = Array.prototype.slice.call(container.querySelectorAll('button'));
     function paint(){
       var active = container.querySelector('button.active') || btns[0];
-      var idx = btns.indexOf(active);
-      thumb.style.width = 'calc((100% - 2px)/'+btns.length+')';
-      thumb.style.transform = 'translateX('+(idx*100)+'%)';
+      if(!active || !active.offsetWidth) return; /* hidden view — repaint when shown */
+      /* measure the actual button: labels are different widths, so equal
+         fractions of the container drift (and overflow onto the next label) */
+      thumb.style.width = active.offsetWidth+'px';
+      thumb.style.transform = 'translateX('+(active.offsetLeft-2)+'px)';
     }
     function setActive(v){ btns.forEach(function(b){ b.classList.toggle('active', b.getAttribute(attr)===v); }); paint(); }
     btns.forEach(function(b){ b.addEventListener('click', function(){ setActive(b.getAttribute(attr)); onChange(b.getAttribute(attr)); }); });
+    /* the rail fires a resize on view switch, so a seg that was hidden at
+       first paint measures itself the moment it becomes visible */
+    window.addEventListener('resize', paint);
     paint();
     return setActive;
   }
@@ -3121,7 +3140,7 @@
     var el = document.getElementById('modelsTable');
     el.innerHTML = WINCH_MODELS.map(function(m,idx){
       return '<div class="lib-card">' +
-        '<div class="lib-card-head"><input class="lib-card-name" data-model-field="name" data-idx="'+idx+'" value="'+m.name+'">' +
+        '<div class="lib-card-head"><input type="text" class="lib-card-name" data-model-field="name" data-idx="'+idx+'" value="'+m.name+'">' +
           (WINCH_MODELS.length>1 ? '<button class="rm-btn" data-remove-model="'+idx+'" title="Remove model">'+RM_ICON+'</button>' : '') + '</div>' +
         '<div class="lib-fields">' +
           '<div class="lib-field"><label>Max speed</label><div class="lib-inp"><input type="number" data-model-field="maxSpeedCmS" data-idx="'+idx+'" value="'+m.maxSpeedCmS+'"><span>cm/s</span></div></div>' +
@@ -3154,7 +3173,7 @@
     var el = document.getElementById('fittingsTable');
     el.innerHTML = FITTINGS.map(function(f,idx){
       return '<div class="lib-card">' +
-        '<div class="lib-card-head"><span class="fit-glyph">'+fitGlyph(f.category)+'</span><input class="lib-card-name" data-fit-field="name" data-idx="'+idx+'" value="'+f.name+'">' +
+        '<div class="lib-card-head"><span class="fit-glyph">'+fitGlyph(f.category)+'</span><input type="text" class="lib-card-name" data-fit-field="name" data-idx="'+idx+'" value="'+f.name+'">' +
           (FITTINGS.length>1 ? '<button class="rm-btn" data-remove-fitting="'+idx+'" title="Remove fitting">'+RM_ICON+'</button>' : '') + '</div>' +
         '<div class="lib-fields">' +
           '<div class="lib-field"><label>Renders as</label><select data-fit-field="category" data-idx="'+idx+'">'+['point','tube','batten','prop'].map(function(cat){ return '<option value="'+cat+'"'+(cat===f.category?' selected':'')+'>'+(cat==='point'?'sphere':cat)+'</option>'; }).join('')+'</select></div>' +
@@ -4686,7 +4705,7 @@
         '<td class="mono-cell">'+pad(w.id)+'</td><td><span class="row-status '+w.status+'" title="'+label+'"></span>'+w.name+'</td>' +
         '<td><select class="model-select" data-id="'+w.id+'">'+WINCH_MODELS.map(function(m){return '<option value="'+m.id+'"'+(m.id===w.modelId?' selected':'')+'>'+m.name+'</option>';}).join('')+'</select></td>' +
         '<td><select class="fitting-select" data-id="'+w.id+'">'+FITTINGS.map(function(f){return '<option value="'+f.id+'"'+(f.id===w.fittingId?' selected':'')+'>'+f.name+'</option>';}).join('')+'</select></td>' +
-        '<td><input class="addr-input mono deskaddr-input" data-id="'+w.id+'" value="'+dA.u+'.'+dA.c+'"'+(dA.custom?' style="color:var(--yellow);"':'')+' title="'+(dA.custom?'Custom console address — clear the field to return to automatic':'Automatic console address (patch order) — type universe.channel to override')+(deskEnabled()?'':' · console input is off (Settings → Console & Remote)')+'"></td><td><input class="addr-input mono" data-id="'+w.id+'" value="'+w.blkAddr+'"></td><td class="mono-cell" title="'+dmxToM(w.pos, modelById(w.modelId)).toFixed(2)+' m below top">'+w.pos+'</td>' +
+        '<td><input type="text" class="addr-input mono deskaddr-input" data-id="'+w.id+'" value="'+dA.u+'.'+dA.c+'"'+(dA.custom?' style="color:var(--yellow);"':'')+' title="'+(dA.custom?'Custom console address — clear the field to return to automatic':'Automatic console address (patch order) — type universe.channel to override')+(deskEnabled()?'':' · console input is off (Settings → Console & Remote)')+'"></td><td><input type="text" class="addr-input mono" data-id="'+w.id+'" value="'+w.blkAddr+'"></td><td class="mono-cell" title="'+dmxToM(w.pos, modelById(w.modelId)).toFixed(2)+' m below top">'+w.pos+'</td>' +
         '<td><input type="number" class="limit-input" data-limit="top" data-id="'+w.id+'" value="'+w.topLimit+'"><div class="lim-m">'+dmxToM(w.topLimit, modelById(w.modelId)).toFixed(2)+' m</div></td>' +
         '<td><input type="number" class="limit-input" data-limit="bottom" data-id="'+w.id+'" value="'+w.bottomLimit+'"><div class="lim-m">'+dmxToM(w.bottomLimit, modelById(w.modelId)).toFixed(2)+' m</div></td>' +
         '<td><input type="number" class="limit-input" data-maxspeed="1" data-id="'+w.id+'" value="'+w.maxSpeed+'" style="width:56px;'+(overspeed?'color:var(--red);':'')+'" title="Rated: '+modelById(w.modelId).maxSpeedCmS+' cm/s"></td>' +
