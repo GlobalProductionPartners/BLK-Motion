@@ -374,9 +374,11 @@ function autosavePath() {
   return path.join(app.getPath('userData'), 'autosave.blkshow');
 }
 
-ipcMain.handle('show:autosave', (_event, { json }) => {
+ipcMain.handle('show:autosave', async (_event, { json }) => {
   try {
-    fs.writeFileSync(autosavePath(), json, 'utf8');
+    // async: shows with embedded bitmaps run to several MB — never block
+    // the main process (and with it every IPC) on disk
+    await fs.promises.writeFile(autosavePath(), json, 'utf8');
     return { ok: true };
   } catch (err) {
     return { ok: false, error: String((err && err.message) || err) };

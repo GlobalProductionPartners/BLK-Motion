@@ -3209,6 +3209,7 @@
   var layDrag = null;         /* {kind:'move'|'band'|'shape'|'handle', view, ...} */
   var layPending = null;      /* placed shape awaiting confirm — {tool,x0,z0,x1,z1,idxs,orig} */
   var renderLayListRef = null; /* assigned by wireLayoutPage */
+  var layCancelPendingRef = null; /* assigned by wireLayoutPage — cancels an unconfirmed shape */
   function laySelCount(){ return Object.keys(laySel).length; }
   function laySelIndices(){
     var out = [];
@@ -3708,6 +3709,7 @@
       logLine(idxs.length+' fixture'+(idxs.length>1?'s':'')+' to the roadcase — still patched, dark and retracted');
     });
     renderLayListRef = renderLayList;
+    layCancelPendingRef = function(){ resolvePending(false); };
     document.getElementById('layClearBtn').addEventListener('click', function(){
       resolvePending(false);
       if(!winchData.length){ logLine('Layout is already empty'); return; }
@@ -4570,6 +4572,7 @@
     btn.addEventListener('click', function(){
       railBtns.forEach(function(b){ b.classList.remove('active'); });
       btn.classList.add('active');
+      if(btn.dataset.view!=='layout' && layCancelPendingRef) layCancelPendingRef();
       Object.keys(docks).forEach(function(k){ docks[k].classList.toggle('active', k===btn.dataset.view); });
       window.dispatchEvent(new Event('resize'));
     });
@@ -4603,6 +4606,12 @@
   /* Everything that depends on the patch, in one place — table, summaries,
      zone list, the Layout plan and the 3D rig itself. */
   function patchChanged(){
+    /* drop layout-selection entries for fixtures that no longer exist —
+       stale ids would inflate the selection count and Place/Case targets */
+    Object.keys(laySel).forEach(function(idStr){
+      if(!winchById(+idStr)) delete laySel[+idStr];
+    });
+    if(layAnchor!==null && !winchById(layAnchor)) layAnchor = null;
     renderPatchRows(); renderPatchSummary(); renderPatchNote();
     renderZoneList(); renderZoneInfo(); updateSelCount();
     if(rebuildRig) rebuildRig();
@@ -4667,11 +4676,10 @@
   }
   var patchRowsEl = document.getElementById('patchRows');
   function renderPatchRows(){
-    patchRowsEl.innerHTML = winchData.map(function(w){
+    patchRowsEl.innerHTML = winchData.map(function(w, wi){
       var label = w.status==='on'?'Online':w.status==='warn'?'Warn':'Fault';
       var overload = w.loadKg!==null && w.loadKg > modelById(w.modelId).maxLoadKg;
       var overspeed = w.maxSpeed > modelById(w.modelId).maxSpeedCmS;
-      var wi = winchData.indexOf(w);
       var dA = deskAddrInfo(wi);
       return '<tr data-rowid="'+w.id+'" class="'+(w.status!=='on'?'offline':'')+(selectedPatchIds[w.id]?' sel':'')+'">' +
         '<td><input type="checkbox" class="patch-sel" data-id="'+w.id+'"'+(selectedPatchIds[w.id]?' checked':'')+'></td>' +
@@ -5516,7 +5524,6 @@
     rebuildRig = function(){
       GRID_COLS = Math.max(1, layout.cols|0);
       N = winchData.length;
-      GRID_ROWS = Math.max(1, Math.ceil(N/GRID_COLS) || 1); /* rows follow the patch count */
       trussY = Math.max(1, +layout.trussH || 5.2);
       /* world XZ per fixture, centred on the rig's real bounding box —
          identical maths for grid and custom shapes */
