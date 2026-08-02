@@ -927,6 +927,13 @@
                 <input type="number" min="1" max="30" step="0.1" data-layout="trussH"><span class="u">m</span>
               </div>
 
+              <div class="lay-bar-group sep">
+                <label class="lay-chk" title="Render a fabric stretched across every motor instead of individual fittings — each winch pulls its own point of the cloth"><input type="checkbox" id="layClothOn">Cloth</label>
+                <label title="How far the fabric droops between motors">Sag</label>
+                <input type="range" min="0" max="1.5" step="0.05" value="0.4" id="layClothSag">
+                <span class="u" id="layClothSagVal">0.40 m</span>
+              </div>
+
               <div class="lay-bar-group" id="layShapeConfirm">
                 <button class="flat-btn go" id="layShapeOkBtn" title="Keep this arrangement (Enter)">Confirm</button>
                 <button class="flat-btn" id="layShapeCancelBtn" title="Put the fixtures back (Esc)">Cancel</button>
@@ -1495,7 +1502,8 @@
      spacing (m) and truss height (m). Rows follow the patch count. Owned by
      the Layout view, saved in the show file. GRID_COLS/ROWS stay as plain
      vars because the effect engine reads them constantly. */
-  var layout = { cols:12, pitchX:0.8, pitchZ:1.0, trussH:5.2, mode:'grid' };
+  var layout = { cols:12, pitchX:0.8, pitchZ:1.0, trussH:5.2, mode:'grid',
+                 cloth:{ on:false, sag:0.4 } };
   var GRID_COLS = layout.cols, GRID_ROWS = 1;
   function layoutIsCustom(){ return layout.mode==='custom'; }
   /* one source of truth for where a fixture hangs in plan (metres).
@@ -1542,6 +1550,7 @@
   }
   var rebuildRig = null; /* assigned by the 3D viewport once WebGL is up */
   var refreshLayoutMode = null; /* assigned by wireLayoutPage */
+  var refreshClothUi = null;    /* assigned by wireLayoutPage */
   /* SELECTION GROUPS — named sets of fixtures picked on the layout grid.
      Cues and timeline tracks can be scoped to a group; a missing/deleted
      group falls back to All so playback never silently dies. */
@@ -3652,6 +3661,30 @@
         Array.prototype.forEach.call(document.querySelectorAll('.lay-tool'), function(x){ x.classList.toggle('on', x===b); });
       });
     });
+    (function(){
+      var onC = document.getElementById('layClothOn'), sagC = document.getElementById('layClothSag'), sagV = document.getElementById('layClothSagVal');
+      function syncCloth(){
+        onC.checked = !!layout.cloth.on;
+        sagC.value = layout.cloth.sag;
+        sagV.textContent = (+layout.cloth.sag).toFixed(2)+' m';
+        sagC.disabled = !layout.cloth.on;
+      }
+      onC.addEventListener('change', function(){
+        pushUndo('cloth');
+        layout.cloth.on = onC.checked;
+        syncCloth();
+        if(rebuildRig) rebuildRig();
+        logLine(layout.cloth.on ? 'Cloth on — the rig renders as fabric pinned to every motor' : 'Cloth off — individual fittings');
+      });
+      sagC.addEventListener('input', function(){
+        layout.cloth.sag = +sagC.value;
+        sagV.textContent = layout.cloth.sag.toFixed(2)+' m';
+        if(rebuildRig) rebuildRig();
+      });
+      sagC.addEventListener('change', function(){ pushUndo('cloth sag','clothsag'); });
+      refreshClothUi = syncCloth;
+      syncCloth();
+    })();
     document.getElementById('layBend').addEventListener('input', function(){
       document.getElementById('layBendVal').textContent = (+this.value).toFixed(1)+' m';
       if(layPending && layPending.tool==='curve') applyPendingPreview();
@@ -6150,6 +6183,7 @@
       fixturePos = new Float32Array(N*3); fixtureColor = new Float32Array(N*3); fixtureScale = new Float32Array(N*3);
       fixtureLimitBlend = new Float32Array(N);
       staticDirty = true; /* floor grid + truss follow the new extents */
+      clothDirty = true;  /* pin positions changed — re-solve the weave */
     };
     rebuildRig();
 
@@ -6176,6 +6210,161 @@
     var lineVS = ['attribute vec3 aPos;','attribute vec4 aCol;','uniform mat4 uProj;','uniform mat4 uView;','varying vec4 vCol;',
       'void main(){ vCol=aCol; gl_Position=uProj*uView*vec4(aPos,1.0); }'].join('\n');
     var lineFS = ['precision mediump float;','varying vec4 vCol;','void main(){ gl_FragColor=vCol; }'].join('\n');
+    /* CLOTH — a fabric stretched over the whole rig instead of separate
+       fittings. Every motor pins one point of it; the surface between them is
+       an inverse-distance blend of the pinned heights, drooping toward the
+       sag value where it is furthest from any pin. The XZ layout only changes
+       when the rig does, so the pin weights are precomputed and each frame
+       only blends heights and colours. */
+    var clothVS = ['attribute vec3 aPos;','attribute vec3 aNrm;','attribute vec3 aCol;',
+      'uniform mat4 uProj;','uniform mat4 uView;','varying vec3 vN;','varying vec3 vC;','varying vec3 vP;',
+      'void main(){','  gl_Position = uProj*uView*vec4(aPos,1.0);','  vN=aNrm; vC=aCol; vP=aPos;','}'].join('\n');
+    var clothFS = ['precision mediump float;','varying vec3 vN;','varying vec3 vC;','varying vec3 vP;',
+      'uniform vec3 uLightDir;','uniform vec3 uEye;',
+      'void main(){','  vec3 n = normalize(vN);','  vec3 v = normalize(uEye - vP);',
+      '  if(dot(n,v) < 0.0) n = -n;',   /* fabric is visible from both sides */
+      '  float diff = max(dot(n,uLightDir),0.0);',
+      '  vec3 fabric = vec3(0.115,0.115,0.125)*(0.45 + diff*0.85);',
+      /* the LEDs light the cloth from behind the weave — colour reads through
+         it, brightest where the surface faces the viewer */
+      '  float facing = max(dot(n,v),0.0);',
+      '  vec3 glow = vC*(0.70 + 0.55*diff + 0.35*pow(facing,1.6));',
+      '  gl_FragColor = vec4(fabric + glow, 1.0);','}'].join('\n');
+    var clothProg = makeProgram(clothVS, clothFS);
+    var cLoc = { aPos:gl.getAttribLocation(clothProg,'aPos'), aNrm:gl.getAttribLocation(clothProg,'aNrm'),
+      aCol:gl.getAttribLocation(clothProg,'aCol'),
+      uProj:gl.getUniformLocation(clothProg,'uProj'), uView:gl.getUniformLocation(clothProg,'uView'),
+      uLightDir:gl.getUniformLocation(clothProg,'uLightDir'), uEye:gl.getUniformLocation(clothProg,'uEye') };
+    var clothBuf = gl.createBuffer(), clothIdxBuf = gl.createBuffer();
+    var clothRes = 0, clothVertData = null, clothIdxCount = 0;
+    var clothGX = null, clothGZ = null;      /* world XZ of each grid vertex */
+    var clothPin = null, clothPinW = null;   /* K pin indices + weights per vertex */
+    var clothNear = null;                    /* normalised distance to the nearest pin */
+    var clothY = null, clothScratch = null;  /* reused height buffers — no per-frame allocation */
+    var clothDirty = true;
+    var CLOTH_K = 6;
+    function buildClothMesh(){
+      clothDirty = false;
+      clothVertData = null; clothIdxCount = 0;
+      if(!layout.cloth.on) return;
+      var pins = [];
+      for(var i=0;i<N;i++){ if(!winchData[i].inCase) pins.push(i); }
+      if(pins.length < 3) return; /* a surface needs at least a triangle of pins */
+
+      var minX=1e9,maxX=-1e9,minZ=1e9,maxZ=-1e9;
+      pins.forEach(function(i){
+        var b = fixtureBase[i];
+        if(b.wx<minX)minX=b.wx; if(b.wx>maxX)maxX=b.wx;
+        if(b.wz<minZ)minZ=b.wz; if(b.wz>maxZ)maxZ=b.wz;
+      });
+      /* typical pin spacing sets both the overhang and the sag scale */
+      var area = Math.max(0.25, (maxX-minX)*(maxZ-minZ));
+      var spacing = Math.max(0.35, Math.sqrt(area/Math.max(1,pins.length)));
+      var margin = spacing*0.25; /* a modest hem past the outermost motors */
+      minX-=margin; maxX+=margin; minZ-=margin; maxZ+=margin;
+
+      clothRes = pins.length<=64 ? 34 : pins.length<=200 ? 26 : 18;
+      var R = clothRes, V = R*R;
+      clothGX = new Float32Array(V); clothGZ = new Float32Array(V);
+      clothPin = new Int32Array(V*CLOTH_K); clothPinW = new Float32Array(V*CLOTH_K);
+      clothNear = new Float32Array(V);
+      clothY = new Float32Array(V); clothScratch = new Float32Array(V);
+      clothVertData = new Float32Array(V*9);
+
+      var d = new Array(pins.length);
+      for(var gz=0; gz<R; gz++){
+        for(var gx=0; gx<R; gx++){
+          var vi = gz*R+gx;
+          var px = minX + (maxX-minX)*(gx/(R-1));
+          var pz = minZ + (maxZ-minZ)*(gz/(R-1));
+          clothGX[vi]=px; clothGZ[vi]=pz;
+          for(var k=0;k<pins.length;k++){
+            var b2 = fixtureBase[pins[k]];
+            var dx = px-b2.wx, dz = pz-b2.wz;
+            d[k] = { i:pins[k], d2: dx*dx+dz*dz };
+          }
+          d.sort(function(a,b){ return a.d2-b.d2; });
+          var kn = Math.min(CLOTH_K, d.length), sum = 0, ws = new Array(kn);
+          for(var q=0;q<kn;q++){ ws[q] = 1/(d[q].d2 + 1e-4); sum += ws[q]; }
+          for(var q2=0;q2<kn;q2++){
+            clothPin[vi*CLOTH_K+q2] = d[q2].i;
+            clothPinW[vi*CLOTH_K+q2] = ws[q2]/sum;
+          }
+          for(var q3=kn;q3<CLOTH_K;q3++){ clothPin[vi*CLOTH_K+q3] = -1; clothPinW[vi*CLOTH_K+q3] = 0; }
+          /* 0 at a pin, 1 half a span away — how much this point can droop */
+          clothNear[vi] = Math.min(1, Math.sqrt(d[0].d2)/(spacing*0.5));
+        }
+      }
+      var idx = [];
+      for(var rz=0; rz<R-1; rz++){
+        for(var rx=0; rx<R-1; rx++){
+          var a = rz*R+rx, b3 = a+1, c = a+R, e = c+1;
+          idx.push(a,c,b3, b3,c,e);
+        }
+      }
+      var idxArr = (V > 65535) ? new Uint32Array(idx) : new Uint16Array(idx);
+      clothIdxCount = idx.length;
+      clothIdxType = (V > 65535) ? gl.UNSIGNED_INT : gl.UNSIGNED_SHORT;
+      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, clothIdxBuf);
+      gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, idxArr, gl.STATIC_DRAW);
+    }
+    var clothIdxType = gl.UNSIGNED_SHORT;
+    /* per frame: blend the pinned heights + colours, droop, re-derive normals */
+    function updateCloth(){
+      if(!clothVertData) return;
+      var R = clothRes, V = R*R, sag = +layout.cloth.sag || 0;
+      var ys = clothY;
+      for(var vi=0; vi<V; vi++){
+        var y=0, r=0, g=0, b=0;
+        for(var k=0;k<CLOTH_K;k++){
+          var pi = clothPin[vi*CLOTH_K+k];
+          if(pi < 0) break;
+          var wgt = clothPinW[vi*CLOTH_K+k];
+          y += fixturePos[pi*3+1]*wgt;
+          r += fixtureColor[pi*3]*wgt; g += fixtureColor[pi*3+1]*wgt; b += fixtureColor[pi*3+2]*wgt;
+        }
+        ys[vi] = y - sag*clothNear[vi];
+        var o = vi*9;
+        clothVertData[o]   = clothGX[vi];
+        clothVertData[o+1] = ys[vi];
+        clothVertData[o+2] = clothGZ[vi];
+        clothVertData[o+6] = r; clothVertData[o+7] = g; clothVertData[o+8] = b;
+      }
+      /* relax the weave: inverse-distance alone cusps at every pin, which
+         reads as a circus tent rather than fabric. Two light Laplacian passes
+         round the folds while the motors still drive the shape. */
+      for(var pass=0; pass<2; pass++){
+        clothScratch.set(ys);
+        for(var sz=0; sz<R; sz++){
+          for(var sx=0; sx<R; sx++){
+            var si = sz*R+sx;
+            var nsum = clothScratch[sz*R+Math.max(0,sx-1)] + clothScratch[sz*R+Math.min(R-1,sx+1)]
+                     + clothScratch[Math.max(0,sz-1)*R+sx] + clothScratch[Math.min(R-1,sz+1)*R+sx];
+            ys[si] = clothScratch[si]*0.45 + (nsum/4)*0.55;
+          }
+        }
+      }
+      for(var wi=0; wi<V; wi++) clothVertData[wi*9+1] = ys[wi];
+
+      /* normals from the height field — central differences on the grid */
+      var stepX = (clothGX[1]-clothGX[0]) || 0.1;
+      var stepZ = (clothGZ[R]-clothGZ[0]) || 0.1;
+      for(var gz2=0; gz2<R; gz2++){
+        for(var gx2=0; gx2<R; gx2++){
+          var i2 = gz2*R+gx2;
+          var xl = ys[gz2*R+Math.max(0,gx2-1)], xr = ys[gz2*R+Math.min(R-1,gx2+1)];
+          var zl = ys[Math.max(0,gz2-1)*R+gx2], zr = ys[Math.min(R-1,gz2+1)*R+gx2];
+          var dydx = (xr-xl)/(stepX*2), dydz = (zr-zl)/(stepZ*2);
+          var nx = -dydx, ny = 1, nz = -dydz;
+          var len = Math.sqrt(nx*nx+ny*ny+nz*nz) || 1;
+          var o2 = i2*9;
+          clothVertData[o2+3] = nx/len; clothVertData[o2+4] = ny/len; clothVertData[o2+5] = nz/len;
+        }
+      }
+      gl.bindBuffer(gl.ARRAY_BUFFER, clothBuf);
+      gl.bufferData(gl.ARRAY_BUFFER, clothVertData, gl.DYNAMIC_DRAW);
+    }
+
     var lineProg = makeProgram(lineVS, lineFS);
     var lLoc = { aPos:gl.getAttribLocation(lineProg,'aPos'), aCol:gl.getAttribLocation(lineProg,'aCol'),
       uProj:gl.getUniformLocation(lineProg,'uProj'), uView:gl.getUniformLocation(lineProg,'uView') };
@@ -6327,6 +6516,25 @@
         gl.depthMask(true);
         gl.disableVertexAttribArray(lLoc.aCol);
 
+        if(layout.cloth.on){
+          /* the rig IS the fabric: draw it instead of the individual fittings */
+          if(clothDirty) buildClothMesh();
+          if(clothVertData){
+            updateCloth();
+            gl.useProgram(clothProg);
+            gl.uniformMatrix4fv(cLoc.uProj,false,proj); gl.uniformMatrix4fv(cLoc.uView,false,view);
+            gl.uniform3f(cLoc.uLightDir, lightDir[0], lightDir[1], lightDir[2]);
+            gl.uniform3f(cLoc.uEye, eye[0], eye[1], eye[2]);
+            gl.bindBuffer(gl.ARRAY_BUFFER, clothBuf);
+            gl.enableVertexAttribArray(cLoc.aPos); gl.vertexAttribPointer(cLoc.aPos,3,gl.FLOAT,false,36,0);
+            gl.enableVertexAttribArray(cLoc.aNrm); gl.vertexAttribPointer(cLoc.aNrm,3,gl.FLOAT,false,36,12);
+            gl.enableVertexAttribArray(cLoc.aCol); gl.vertexAttribPointer(cLoc.aCol,3,gl.FLOAT,false,36,24);
+            gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, clothIdxBuf);
+            gl.drawElements(gl.TRIANGLES, clothIdxCount, clothIdxType, 0);
+            gl.disableVertexAttribArray(cLoc.aNrm); gl.disableVertexAttribArray(cLoc.aCol);
+          }
+        }
+
         gl.useProgram(sphereProg); gl.uniformMatrix4fv(sLoc.uProj,false,proj); gl.uniformMatrix4fv(sLoc.uView,false,view);
         gl.uniform3f(sLoc.uLightDir, lightDir[0], lightDir[1], lightDir[2]);
         gl.uniform3f(sLoc.uEye, eye[0], eye[1], eye[2]);
@@ -6334,7 +6542,7 @@
         gl.enableVertexAttribArray(sLoc.aPos); gl.vertexAttribPointer(sLoc.aPos,3,gl.FLOAT,false,0,0);
         gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, sphereIdxBuf);
         gl.uniform1f(sLoc.uGlow, 0.0);
-        for(var s3=0; s3<N; s3++){
+        for(var s3=0; layout.cloth.on ? false : s3<N; s3++){
           var bl = 0.3*fixtureColor[s3*3] + 0.6*fixtureColor[s3*3+1] + 0.1*fixtureColor[s3*3+2];
           gl.uniform1f(sLoc.uEmis, Math.min(1, bl*1.6)); /* lit = emissive body, dark = matte silhouette */
           gl.uniform3f(sLoc.uCenter, fixturePos[s3*3], fixturePos[s3*3+1], fixturePos[s3*3+2]);
@@ -6348,7 +6556,7 @@
         gl.depthMask(false);
         gl.disable(gl.DEPTH_TEST);
         gl.blendFunc(gl.SRC_ALPHA, gl.ONE);
-        for(var h3=0; h3<N; h3++){
+        for(var h3=0; layout.cloth.on ? false : h3<N; h3++){
           var lum = 0.3*fixtureColor[h3*3] + 0.6*fixtureColor[h3*3+1] + 0.1*fixtureColor[h3*3+2];
           if(lum < 0.01) continue; /* glow scales with lum, so it FADES out — no pop at a threshold */
           gl.uniform3f(sLoc.uCenter, fixturePos[h3*3], fixturePos[h3*3+1], fixturePos[h3*3+2]);
@@ -6570,8 +6778,9 @@
       if(d.layout){
         ['cols','pitchX','pitchZ','trussH'].forEach(function(k){ if(typeof d.layout[k]==='number') layout[k] = d.layout[k]; });
         layout.mode = d.layout.mode==='custom' ? 'custom' : 'grid';
+        if(d.layout.cloth) layout.cloth = { on:!!d.layout.cloth.on, sag:+d.layout.cloth.sag||0.4 };
       }
-      refreshLayoutInputs(); if(refreshLayoutMode) refreshLayoutMode(); applyLayout();
+      refreshLayoutInputs(); if(refreshLayoutMode) refreshLayoutMode(); if(refreshClothUi) refreshClothUi(); applyLayout();
       if(typeof d.selectedCueId === 'number' && cueById(d.selectedCueId)) selectedCueId = d.selectedCueId;
       if(Array.isArray(d.pages) && d.pages.length){
         pages.length = 0;
