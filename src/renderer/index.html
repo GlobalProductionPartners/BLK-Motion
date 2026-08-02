@@ -307,6 +307,10 @@
   .layfix-row .lf-chk{ width:9px; height:9px; border:1px solid var(--text-3); flex:0 0 auto; }
   .layfix-row.sel{ color:var(--text); }
   .layfix-row.sel .lf-chk{ background:var(--blue); border-color:var(--blue); }
+  .layfix-row .lf-name{ flex:1 1 auto; }
+  .layfix-row .lf-case{ display:none; font-size:10px; color:var(--yellow); text-transform:uppercase; letter-spacing:.05em; }
+  .layfix-row.incase{ opacity:.55; }
+  .layfix-row.incase .lf-case{ display:inline; }
 
   /* settings tabs */
   .set-tabs{ display:flex; gap:2px; padding:8px 20px 0; flex:0 0 auto; background:var(--surface); }
@@ -860,7 +864,11 @@
               <div style="margin-top:14px;">
                 <div class="section-head">Fixtures</div>
                 <div id="layFixList"></div>
-                <p class="lib-note" style="margin-top:6px;">Click toggles · shift-click selects the range · the arrange tools use this selection</p>
+                <div style="display:flex; gap:4px; margin-top:6px;">
+                  <button class="flat-btn" id="layPlaceBtn" title="Hang the selected fixtures — back onto the plan at their stored (or grid) position">Place Selected</button>
+                  <button class="flat-btn" id="layCaseBtn" title="Send the selected fixtures to the roadcase — still patched, but off the plan, dark and retracted">To Case</button>
+                </div>
+                <p class="lib-note" style="margin-top:6px;">Click toggles · shift-click selects the range · drawing a shape with cased fixtures selected hangs them onto it</p>
               </div>
               <div style="margin-top:14px;">
                 <div class="section-head">Start Height</div>
@@ -1386,10 +1394,22 @@
   /* one source of truth for where a fixture hangs in plan (metres).
      Grid mode: patch order wraps every `cols`. Custom mode: the fixture's
      own lx/lz, seeded from its grid slot the first time it's needed. */
+  /* placed fixtures fill grid slots in patch order; fixtures IN THE ROADCASE
+     don't occupy a slot (the hung rig closes up around them) */
+  var gridSlotIdx = null, fxPlacedN = 0;
+  function ensureGridSlots(){
+    if(gridSlotIdx && gridSlotIdx.length===winchData.length) return;
+    gridSlotIdx = new Array(winchData.length);
+    var k = 0;
+    for(var i=0;i<winchData.length;i++){ gridSlotIdx[i] = winchData[i].inCase ? -1 : k++; }
+    fxPlacedN = k;
+  }
   function fixturePlanPos(i){
     var w = winchData[i];
-    var gx = (i%Math.max(1,layout.cols|0))*layout.pitchX;
-    var gz = Math.floor(i/Math.max(1,layout.cols|0))*layout.pitchZ;
+    ensureGridSlots();
+    var slot = gridSlotIdx[i]===-1 ? i : gridSlotIdx[i];
+    var gx = (slot%Math.max(1,layout.cols|0))*layout.pitchX;
+    var gz = Math.floor(slot/Math.max(1,layout.cols|0))*layout.pitchZ;
     if(layoutIsCustom()){
       if(typeof w.lx!=='number'){ w.lx = gx; w.lz = gz; }
       return { x:w.lx, z:w.lz };
@@ -1400,13 +1420,16 @@
      by real X and Z, and those ranks feed the same wings/blocks phase math
      the grid uses — "left to right" is literal, whatever the shape */
   var fxRankX = null, fxRankZ = null;
-  function invalidateRanks(){ fxRankX = null; }
+  function invalidateRanks(){ fxRankX = null; gridSlotIdx = null; }
   function ensureRanks(){
     if(fxRankX && fxRankX.length===winchData.length) return;
     var n = winchData.length;
     fxRankX = new Array(n); fxRankZ = new Array(n);
     var idx = [];
-    for(var i=0;i<n;i++){ var p = fixturePlanPos(i); idx.push({ i:i, x:p.x, z:p.z }); }
+    for(var i=0;i<n;i++){
+      fxRankX[i] = 0; fxRankZ[i] = 0; /* cased fixtures are dormant — rank unused */
+      if(!winchData[i].inCase){ var p = fixturePlanPos(i); idx.push({ i:i, x:p.x, z:p.z }); }
+    }
     idx.slice().sort(function(a,b){ return a.x-b.x || a.i-b.i; }).forEach(function(e,r){ fxRankX[e.i]=r; });
     idx.slice().sort(function(a,b){ return a.z-b.z || a.i-b.i; }).forEach(function(e,r){ fxRankZ[e.i]=r; });
   }
@@ -3187,13 +3210,15 @@
     return out;
   }
   function computePlanView(w, h){
-    var minX=1e9, maxX=-1e9, minZ=1e9, maxZ=-1e9;
+    var minX=1e9, maxX=-1e9, minZ=1e9, maxZ=-1e9, any=false;
     for(var i=0;i<winchData.length;i++){
+      if(winchData[i].inCase) continue;
       var p = fixturePlanPos(i);
+      any = true;
       if(p.x<minX)minX=p.x; if(p.x>maxX)maxX=p.x;
       if(p.z<minZ)minZ=p.z; if(p.z>maxZ)maxZ=p.z;
     }
-    if(!winchData.length){ minX=maxX=minZ=maxZ=0; }
+    if(!any){ minX=maxX=minZ=maxZ=0; }
     var pad = 46;
     var scale = Math.min((w-pad*2)/Math.max(maxX-minX,0.001), (h-pad*2)/Math.max(maxZ-minZ,0.001));
     if(!isFinite(scale) || scale<=0) scale = 40;
@@ -3228,8 +3253,10 @@
     ctx.fillText('front of stage', v.ox+spanW*v.scale/2-30, v.oy+spanD*v.scale+28);
     if(spanD>0.01){ ctx.save(); ctx.translate(v.ox-24, v.oy+spanD*v.scale/2+12); ctx.rotate(-Math.PI/2); ctx.fillText(spanD.toFixed(1)+' m',0,0); ctx.restore(); }
     var showIds = count<=150 && v.scale>14;
+    var nCase = 0;
     for(var n=0;n<count;n++){
       var wch = winchData[n];
+      if(wch.inCase){ nCase++; continue; } /* in the roadcase — not on the plan */
       var pt = planToPx(v, fixturePlanPos(n));
       var r = Math.max(3, Math.min(6, v.scale*0.14));
       if(laySel[wch.id]){
@@ -3272,10 +3299,15 @@
       var bw = Math.abs(layDrag.px1-layDrag.px0), bh = Math.abs(layDrag.py1-layDrag.py0);
       ctx.fillRect(bx,by,bw,bh); ctx.strokeRect(bx,by,bw,bh);
     }
+    if(nCase===count){
+      ctx.fillStyle='rgba(240,196,90,.9)'; ctx.font='11px ui-monospace,monospace';
+      ctx.fillText('All '+count+' fixtures are in the roadcase — select them in the list and Place, or draw a shape', 20, 34);
+    }
     if(summary){
+      var caseTxt = nCase ? ' · '+nCase+' in the case' : '';
       summary.textContent = layoutIsCustom()
-        ? count+' fixture'+(count>1?'s':'')+' · custom placement · rig '+spanW.toFixed(1)+' × '+spanD.toFixed(1)+' m · truss at '+(+layout.trussH).toFixed(1)+' m'
-        : count+' fixture'+(count>1?'s':'')+' · '+Math.max(1,layout.cols|0)+' wide grid · rig '+spanW.toFixed(1)+' × '+spanD.toFixed(1)+' m · truss at '+(+layout.trussH).toFixed(1)+' m';
+        ? (count-nCase)+' placed'+caseTxt+' · custom · rig '+spanW.toFixed(1)+' × '+spanD.toFixed(1)+' m · truss at '+(+layout.trussH).toFixed(1)+' m'
+        : (count-nCase)+' placed'+caseTxt+' · '+Math.max(1,layout.cols|0)+' wide grid · rig '+spanW.toFixed(1)+' × '+spanD.toFixed(1)+' m · truss at '+(+layout.trussH).toFixed(1)+' m';
     }
     var info = document.getElementById('laySelInfo');
     if(info) info.textContent = layPending
@@ -3405,6 +3437,7 @@
     function hitFixture(v2, px, py){
       var best = null, bestD = 10;
       for(var i2=0;i2<winchData.length;i2++){
+        if(winchData[i2].inCase) continue;
         var pt2 = planToPx(v2, fixturePlanPos(i2));
         var d2 = Math.hypot(pt2.x-px, pt2.y-py);
         if(d2<bestD){ bestD = d2; best = i2; }
@@ -3514,6 +3547,7 @@
           var x0 = Math.min(d2.px0,d2.px1), x1 = Math.max(d2.px0,d2.px1);
           var y0 = Math.min(d2.py0,d2.py1), y1 = Math.max(d2.py0,d2.py1);
           winchData.forEach(function(w2, i2){
+            if(w2.inCase) return;
             var pt2 = planToPx(d2.view, fixturePlanPos(i2));
             if(pt2.x>=x0 && pt2.x<=x1 && pt2.y>=y0 && pt2.y<=y1) laySel[w2.id] = true;
           });
@@ -3554,6 +3588,7 @@
       var pts2 = shapePositions(layPending.tool, {x:layPending.x0, z:layPending.z0}, {x:layPending.x1, z:layPending.z1}, layPending.idxs.length);
       layPending.idxs.forEach(function(i2, k2){
         var w2 = winchData[i2];
+        delete w2.inCase; /* drawing a shape hangs cased fixtures onto it */
         w2.lx = snapM(pts2[k2].x); w2.lz = snapM(pts2[k2].z);
       });
       invalidateRanks();
@@ -3570,7 +3605,7 @@
       if(d2.tool!=='circle' && Math.hypot(d2.x1-d2.x0, d2.z1-d2.z0)<0.05){ drawLayoutPlan(); return; }
       layPending = {
         tool:d2.tool, x0:d2.x0, z0:d2.z0, x1:d2.x1, z1:d2.z1, idxs:idxs,
-        orig: idxs.map(function(i2){ return { i:i2, lx:winchData[i2].lx, lz:winchData[i2].lz }; })
+        orig: idxs.map(function(i2){ return { i:i2, lx:winchData[i2].lx, lz:winchData[i2].lz, inCase:winchData[i2].inCase }; })
       };
       applyPendingPreview();
       updatePendingUi();
@@ -3580,6 +3615,7 @@
         var w2 = winchData[o2.i];
         if(o2.lx===undefined){ delete w2.lx; delete w2.lz; }
         else { w2.lx = o2.lx; w2.lz = o2.lz; }
+        if(o2.inCase) w2.inCase = true; else delete w2.inCase;
       });
     }
     function resolvePending(confirm){
@@ -3592,6 +3628,7 @@
         var pts2 = shapePositions(pd.tool, {x:pd.x0, z:pd.z0}, {x:pd.x1, z:pd.z1}, pd.idxs.length);
         pd.idxs.forEach(function(i2, k2){
           var w2 = winchData[i2];
+          delete w2.inCase;
           w2.lx = snapM(pts2[k2].x); w2.lz = snapM(pts2[k2].z);
         });
         logLine('Arranged '+pd.idxs.length+' fixtures on a '+pd.tool);
@@ -3615,28 +3652,45 @@
       if(!el2) return;
       if(el2.childElementCount !== winchData.length){
         el2.innerHTML = winchData.map(function(w2){
-          return '<div class="layfix-row" data-lid="'+w2.id+'"><span class="lf-chk"></span>'+pad(w2.id)+' · '+w2.name+'</div>';
+          return '<div class="layfix-row" data-lid="'+w2.id+'"><span class="lf-chk"></span><span class="lf-name">'+pad(w2.id)+' · '+w2.name+'</span><span class="lf-case">case</span></div>';
         }).join('');
       }
       Array.prototype.forEach.call(el2.children, function(row){
+        var w3 = winchById(+row.getAttribute('data-lid'));
         row.classList.toggle('sel', !!laySel[+row.getAttribute('data-lid')]);
+        row.classList.toggle('incase', !!(w3 && w3.inCase));
       });
     }
+    document.getElementById('layPlaceBtn').addEventListener('click', function(){
+      var idxs = laySelIndices();
+      if(!idxs.length){ logLine('Select fixtures (list or plan) to place','warn'); return; }
+      pushUndo('place fixtures');
+      idxs.forEach(function(i2){ delete winchData[i2].inCase; });
+      applyLayout();
+      logLine(idxs.length+' fixture'+(idxs.length>1?'s':'')+' placed on the rig');
+    });
+    document.getElementById('layCaseBtn').addEventListener('click', function(){
+      var idxs = laySelIndices();
+      if(!idxs.length){ logLine('Select fixtures (list or plan) to send to the case','warn'); return; }
+      pushUndo('to roadcase');
+      idxs.forEach(function(i2){ winchData[i2].inCase = true; });
+      applyLayout();
+      logLine(idxs.length+' fixture'+(idxs.length>1?'s':'')+' to the roadcase — still patched, dark and retracted');
+    });
     renderLayListRef = renderLayList;
     document.getElementById('layClearBtn').addEventListener('click', function(){
       resolvePending(false);
       if(!winchData.length){ logLine('Layout is already empty'); return; }
-      /* clearing the layout EMPTIES THE RIG — same path as removing every
-         fixture in Patch (safety stop included), one undo brings it all back */
+      /* clearing the layout sends EVERY fixture to the roadcase: still
+         patched (addresses kept), but off the plan, dark and retracted.
+         Anything running safety-stops, exactly like a patch change. */
+      patchSafetyStop();
+      pushUndo('clear layout');
       var n2 = winchData.length;
-      selectedPatchIds = {};
-      winchData.forEach(function(w2){ selectedPatchIds[w2.id] = true; });
-      removeSelectedFixtures();
+      winchData.forEach(function(w2){ w2.inCase = true; });
       laySel = {}; layAnchor = null;
-      layout.mode = 'grid';
-      if(refreshLayoutMode) refreshLayoutMode();
       applyLayout();
-      logLine('Layout cleared — all '+n2+' fixtures removed (undo restores them)','warn');
+      logLine('Layout cleared — all '+n2+' fixtures to the roadcase (still patched; undo or Place brings them back)','warn');
     });
     /* shift-click must range-select, never start a native text selection */
     document.getElementById('layFixList').addEventListener('mousedown', function(e){ e.preventDefault(); });
@@ -3663,6 +3717,7 @@
       selCount: laySelCount,
       pos: function(i2){ return fixturePlanPos(i2); },
       home: function(i2){ return winchData[i2] ? winchData[i2].homePos : undefined; },
+      inCase: function(i2){ return !!(winchData[i2] && winchData[i2].inCase); },
       dotPx: function(i2){ return planToPx(currentView(), fixturePlanPos(i2)); },
       count: function(){ return winchData.length; },
       pendingHandlePx: function(which){
@@ -5162,11 +5217,13 @@
     for(var i=0;i<n;i++){
       var w = winchData[i], o = engState.out[i];
       var col, row, colsN, rowsN;
+      ensureGridSlots();
       if(layoutIsCustom()){
         ensureRanks();
-        col = fxRankX[i]; colsN = n; row = fxRankZ[i]; rowsN = n;
+        col = fxRankX[i]; colsN = Math.max(1, fxPlacedN); row = fxRankZ[i]; rowsN = Math.max(1, fxPlacedN);
       } else {
-        col = i%GRID_COLS; colsN = GRID_COLS; row = Math.floor(i/GRID_COLS); rowsN = GRID_ROWS;
+        var gslot = gridSlotIdx[i]===-1 ? 0 : gridSlotIdx[i];
+        col = gslot%GRID_COLS; colsN = GRID_COLS; row = Math.floor(gslot/GRID_COLS); rowsN = GRID_ROWS;
       }
       var minLimit = Math.min(w.topLimit, w.bottomLimit), maxLimit = Math.max(w.topLimit, w.bottomLimit);
       /* manual test control: the SELECTED fixture while Test Control is
@@ -5178,7 +5235,15 @@
 
       var wm = modelById(w.modelId);
       var liftM = modelLiftM(wm);
-      if(testing){
+      if(!testing && w.inCase){
+        /* patched but IN THE ROADCASE: retracted, dark, no effects, no desk —
+           the address is reserved, the hardware isn't hung. E-stop still
+           freezes it, Fixture Test still drives it (bench testing). */
+        target = activeAnim.parked
+          ? (stopHold[w.id]!==undefined ? stopHold[w.id] : engState.cur[i])
+          : w.topLimit;
+        o.r = 0; o.g = 0; o.b = 0; o.dim = 0; o.strobe = 0; o.speedScale = 1;
+      } else if(testing){
         target = clampToRange(+w.testHeight || 0, minLimit, maxLimit);
         var trgb = hexToRgb(w.testColor || '#ffffff');
         o.r = trgb[0]; o.g = trgb[1]; o.b = trgb[2];
@@ -5419,14 +5484,18 @@
       /* world XZ per fixture, centred on the rig's real bounding box —
          identical maths for grid and custom shapes */
       fixtureBase = [];
-      var minX=1e9, maxX=-1e9, minZ=1e9, maxZ=-1e9;
+      ensureGridSlots();
+      GRID_ROWS = Math.max(1, Math.ceil(Math.max(1, fxPlacedN)/GRID_COLS));
+      var minX=1e9, maxX=-1e9, minZ=1e9, maxZ=-1e9, anyPlaced=false;
       for(var f3=0; f3<N; f3++){
         var pp = fixturePlanPos(f3);
         fixtureBase.push(pp);
+        if(winchData[f3].inCase) continue; /* the roadcase doesn't stretch the rig */
+        anyPlaced = true;
         if(pp.x<minX)minX=pp.x; if(pp.x>maxX)maxX=pp.x;
         if(pp.z<minZ)minZ=pp.z; if(pp.z>maxZ)maxZ=pp.z;
       }
-      if(!N){ minX=maxX=minZ=maxZ=0; }
+      if(!anyPlaced){ minX=maxX=minZ=maxZ=0; }
       var cx = (minX+maxX)/2, cz = (minZ+maxZ)/2;
       fixtureBase.forEach(function(pp){ pp.wx = pp.x-cx; pp.wz = pp.z-cz; });
       halfW = Math.max(0.5, (maxX-minX)/2);
@@ -5545,6 +5614,12 @@
           var b = fixtureBase[i];
           var x = b.wx, z = b.wz;
           var wch = winchData[i];
+          if(wch.inCase){
+            /* in the roadcase: invisible (zero scale; dark = no halo) */
+            fixtureScale[i*3]=0; fixtureScale[i*3+1]=0; fixtureScale[i*3+2]=0;
+            fixtureColor[i*3]=0; fixtureColor[i*3+1]=0; fixtureColor[i*3+2]=0;
+            continue;
+          }
           var fitting = fittingById(wch.fittingId);
           var o = frame[i];
           /* engine position is the slewed DMX value — identical to the wire */
