@@ -297,6 +297,7 @@
   .flat-btn{ background:var(--surface-2); color:var(--text-2); font-size:11.5px; padding:7px 14px; }
 
   .lay-tool.on{ background:var(--text); color:#000; font-weight:600; }
+  .lay-filter.on{ background:var(--text); color:#000; font-weight:600; }
   #layModeSeg{ display:inline-flex; } /* shrink-wrap so the thumb tracks the buttons */
   #layShapeConfirm{ display:none; }
   #layShapeConfirm.on{ display:flex !important; }
@@ -863,6 +864,11 @@
               </div>
               <div style="margin-top:14px;">
                 <div class="section-head">Fixtures</div>
+                <div style="display:flex; gap:4px; margin-bottom:6px;">
+                  <button class="flat-btn lay-filter on" data-lfilter="all">All</button>
+                  <button class="flat-btn lay-filter" data-lfilter="placed">Placed</button>
+                  <button class="flat-btn lay-filter" data-lfilter="case">In Case</button>
+                </div>
                 <div id="layFixList"></div>
                 <div style="display:flex; gap:4px; margin-top:6px;">
                   <button class="flat-btn" id="layPlaceBtn" title="Hang the selected fixtures — back onto the plan at their stored (or grid) position">Place Selected</button>
@@ -3386,7 +3392,9 @@
       else drawLayoutPlan();
     });
     document.getElementById('laySelAllBtn').addEventListener('click', function(){
-      laySel = {}; winchData.forEach(function(w2){ laySel[w2.id]=true; }); drawLayoutPlan();
+      laySel = {};
+      winchData.forEach(function(w2){ if(layFilterPass(w2)) laySel[w2.id]=true; });
+      drawLayoutPlan();
     });
     document.getElementById('laySelNoneBtn').addEventListener('click', function(){ laySel = {}; drawLayoutPlan(); });
     document.getElementById('laySeedBtn').addEventListener('click', function(){
@@ -3648,20 +3656,41 @@
     });
 
     /* side list — build selections by name/number, then draw the shape */
+    var layListFilter = 'all', layListKey = '';
+    function layFilterPass(w2){
+      if(layListFilter==='placed') return !w2.inCase;
+      if(layListFilter==='case') return !!w2.inCase;
+      return true;
+    }
     function renderLayList(){
       var el2 = document.getElementById('layFixList');
       if(!el2) return;
-      if(el2.childElementCount !== winchData.length){
-        el2.innerHTML = winchData.map(function(w2){
+      var nCase2 = winchData.filter(function(w2){ return w2.inCase; }).length;
+      var key = winchData.length+'|'+layListFilter+'|'+nCase2;
+      if(key !== layListKey){
+        layListKey = key;
+        el2.innerHTML = winchData.filter(layFilterPass).map(function(w2){
           return '<div class="layfix-row" data-lid="'+w2.id+'"><span class="lf-chk"></span><span class="lf-name">'+pad(w2.id)+' · '+w2.name+'</span><span class="lf-case">case</span></div>';
-        }).join('');
+        }).join('') || '<div class="layfix-row" style="color:var(--text-3);">— none —</div>';
+        var pb2 = document.querySelector('.lay-filter[data-lfilter="placed"]');
+        var cb2 = document.querySelector('.lay-filter[data-lfilter="case"]');
+        if(pb2) pb2.textContent = 'Placed ('+(winchData.length-nCase2)+')';
+        if(cb2) cb2.textContent = 'In Case ('+nCase2+')';
       }
       Array.prototype.forEach.call(el2.children, function(row){
         var w3 = winchById(+row.getAttribute('data-lid'));
-        row.classList.toggle('sel', !!laySel[+row.getAttribute('data-lid')]);
-        row.classList.toggle('incase', !!(w3 && w3.inCase));
+        if(!w3) return;
+        row.classList.toggle('sel', !!laySel[w3.id]);
+        row.classList.toggle('incase', !!w3.inCase);
       });
     }
+    Array.prototype.forEach.call(document.querySelectorAll('.lay-filter'), function(b){
+      b.addEventListener('click', function(){
+        layListFilter = b.getAttribute('data-lfilter');
+        Array.prototype.forEach.call(document.querySelectorAll('.lay-filter'), function(x){ x.classList.toggle('on', x===b); });
+        renderLayList();
+      });
+    });
     document.getElementById('layPlaceBtn').addEventListener('click', function(){
       var idxs = laySelIndices();
       if(!idxs.length){ logLine('Select fixtures (list or plan) to place','warn'); return; }
@@ -3700,13 +3729,14 @@
       if(!row) return;
       var wid = +row.getAttribute('data-lid');
       if(e.shiftKey && layAnchor!==null){
-        /* shift-click: the selection BECOMES the range from the anchor */
+        /* shift-click: the selection BECOMES the range from the anchor —
+           only fixtures the current filter shows */
         var ai = winchData.findIndex(function(w2){ return w2.id===layAnchor; });
         var bi = winchData.findIndex(function(w2){ return w2.id===wid; });
         if(ai>=0 && bi>=0){
           laySel = {};
           var lo = Math.min(ai,bi), hi2 = Math.max(ai,bi);
-          for(var k2=lo;k2<=hi2;k2++) laySel[winchData[k2].id] = true;
+          for(var k2=lo;k2<=hi2;k2++){ if(layFilterPass(winchData[k2])) laySel[winchData[k2].id] = true; }
         }
       } else if(e.metaKey || e.ctrlKey){
         /* cmd-click: add/remove one without touching the rest */
