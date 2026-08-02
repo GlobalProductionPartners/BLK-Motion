@@ -312,6 +312,7 @@
   .flat-btn{ background:var(--surface-2); color:var(--text-2); font-size:11.5px; padding:7px 14px; }
 
   .lay-tool.on{ background:var(--text); color:#000; font-weight:600; }
+  .lay-filter{ padding:5px 8px; font-size:10.5px; white-space:nowrap; }
   .lay-filter.on{ background:var(--text); color:#000; font-weight:600; }
   .modal.mvr-modal{ width:760px; max-width:92vw; }
   .mvr-modal .set-row label{ flex:0 0 120px; }
@@ -321,6 +322,39 @@
   .cue-tile.tl-tile .tile-name{ font-weight:600; }
   .cue-tile.tl-tile .tl-badge{ font-size:9.5px; text-transform:uppercase; letter-spacing:.06em; color:var(--text-3); }
   .cue-tile.tl-tile .swatch-bar{ background:linear-gradient(180deg,var(--blue),#2f5f9e); }
+  /* Rig Layout: mode bar across the top, plan takes the room, inspector holds
+     the selection — placement controls and selection controls stop competing
+     for one narrow column */
+  .lay-bar{ flex:0 0 auto; display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+            padding:9px 14px; background:var(--surface); border-bottom:2px solid var(--bg); }
+  .lay-bar-end{ margin-left:auto; } /* stays together and right-aligned when the bar wraps */
+  .lay-bar-group{ display:flex; align-items:center; gap:6px; }
+  .lay-bar-group.sep{ border-left:1px solid var(--hairline); padding-left:10px; }
+  .lay-bar label{ font-size:9.5px; text-transform:uppercase; letter-spacing:.07em; color:var(--text-3); white-space:nowrap; }
+  .lay-bar input[type=number]{ width:54px; padding:4px 6px; font-size:11.5px; font-family:var(--mono); }
+  .lay-bar input[type=range]{ width:76px; }
+  .lay-bar .u{ font-size:10px; color:var(--text-3); white-space:nowrap; }
+  .lay-bar .lay-chk{ display:inline-flex; align-items:center; gap:4px; cursor:pointer; }
+  .lay-bar .lay-chk input{ width:13px; height:13px; accent-color:var(--green); }
+  .lay-summary{ font-size:10.5px; color:var(--text-3); font-family:var(--mono); white-space:nowrap; }
+  #layShapeConfirm{ display:none; }
+  #layShapeConfirm.on{ display:flex !important; }
+
+  .lay-main{ flex:1 1 auto; display:flex; min-height:0; }
+  .lay-canvas-wrap{ flex:1 1 auto; min-width:0; display:flex; flex-direction:column; padding:12px 14px; }
+  #layoutPlan{ flex:1 1 auto; min-height:0; width:100%; cursor:crosshair; }
+
+  .lay-inspector{ width:250px; flex:0 0 auto; border-left:2px solid var(--bg);
+                  padding:14px; overflow-y:auto; display:flex; flex-direction:column; gap:18px; }
+  .insp-sec{ display:flex; flex-direction:column; gap:6px; }
+  .insp-head{ font-size:9.5px; text-transform:uppercase; letter-spacing:.08em; color:var(--text-3); font-weight:600; }
+  .insp-row{ display:flex; align-items:center; gap:4px; }
+  .insp-row .flat-btn{ flex:1 1 auto; }
+  .insp-row input[type=number]{ width:64px; padding:4px 6px; font-size:11.5px; font-family:var(--mono); }
+  .insp-row input[type=text]{ flex:1 1 auto; min-width:0; padding:5px 7px; font-size:11.5px; }
+  .insp-row .u{ font-size:10.5px; color:var(--text-3); }
+  .insp-note{ margin:0; font-size:10.5px; color:var(--text-3); line-height:1.45; }
+
   .plan-legend{ flex:0 0 auto; display:flex; align-items:center; gap:14px; flex-wrap:wrap; padding-top:8px; font-size:10.5px; color:var(--text-3); }
   .plan-legend span{ display:inline-flex; align-items:center; gap:5px; }
   .plan-legend .lgd{ width:8px; height:8px; border-radius:50%; flex:0 0 auto; }
@@ -346,7 +380,7 @@
   .layfix-row .lf-chk{ width:9px; height:9px; border:1px solid var(--text-3); flex:0 0 auto; }
   .layfix-row.sel{ color:var(--text); }
   .layfix-row.sel .lf-chk{ background:var(--blue); border-color:var(--blue); }
-  .layfix-row .lf-name{ flex:1 1 auto; }
+  .layfix-row .lf-name{ flex:1 1 auto; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .layfix-row .lf-case{ display:none; font-size:10px; color:var(--yellow); text-transform:uppercase; letter-spacing:.05em; }
   .layfix-row.incase{ opacity:.55; }
   .layfix-row.incase .lf-case{ display:inline; }
@@ -857,94 +891,109 @@
             <button class="panel-head-btn" data-float="panelLayout" title="Float"><svg viewBox="0 0 16 16" width="13" height="13"><path d="M6.5 3.5h-3v9h9v-3M9.5 3.5h3v3M12.5 3.5L8 8" fill="none" stroke="currentColor" stroke-width="1.4"/></svg></button>
             <button class="panel-head-btn" data-close="panelLayout" title="Close"><svg viewBox="0 0 16 16" width="13" height="13"><path d="M4 4l8 8M12 4l-8 8" fill="none" stroke="currentColor" stroke-width="1.4"/></svg></button>
           </div>
-          <div class="panel-body" style="flex-direction:row; overflow:hidden;">
-            <div style="width:320px; flex:0 0 auto; padding:18px 20px; overflow-y:auto; border-right:2px solid var(--bg);">
-              <div class="section-head">Placement</div>
-              <div style="display:flex; align-items:center; gap:8px; margin-bottom:12px;">
-                <div class="seg small" id="layModeSeg">
-                  <div class="seg-thumb" id="layModeThumb"></div>
-                  <button data-laymode="grid" class="active" title="Fixtures fill a regular grid in patch order">Grid</button>
-                  <button data-laymode="custom" title="Free positioning — drag fixtures, or arrange a selection on a line, circle or curve">Custom</button>
-                </div>
-                <button class="flat-btn" id="layClearBtn" style="color:var(--yellow);" title="Empty the rig: removes every fixture from the patch (safety-stops first if running) — one undo brings them all back">Clear Layout</button>
+          <div class="panel-body" style="flex-direction:column; overflow:hidden;">
+
+            <!-- MODE BAR — what you're doing: placement, tools, dimensions -->
+            <div class="lay-bar">
+              <div class="seg small" id="layModeSeg">
+                <div class="seg-thumb" id="layModeThumb"></div>
+                <button data-laymode="grid" class="active" title="Fixtures fill a regular grid in patch order">Grid</button>
+                <button data-laymode="custom" title="Free positioning — drag fixtures, or arrange a selection on a line, circle or curve">Custom</button>
               </div>
-              <div class="set-rows compact" id="layGridRows">
-                <div class="set-row"><label>Columns</label><input type="number" min="1" max="48" data-layout="cols"><span class="unit">wrap width</span></div>
-                <div class="set-row"><label>Spacing X</label><input type="number" min="0.1" max="10" step="0.1" data-layout="pitchX"><span class="unit">m</span></div>
-                <div class="set-row"><label>Spacing Z</label><input type="number" min="0.1" max="10" step="0.1" data-layout="pitchZ"><span class="unit">m</span></div>
+
+              <div class="lay-bar-group sep" id="layGridRows">
+                <label title="How many fixtures per row before wrapping">Cols</label>
+                <input type="number" min="1" max="48" data-layout="cols">
+                <label title="Spacing across">X</label>
+                <input type="number" min="0.1" max="10" step="0.1" data-layout="pitchX"><span class="u">m</span>
+                <label title="Spacing front to back">Z</label>
+                <input type="number" min="0.1" max="10" step="0.1" data-layout="pitchZ"><span class="u">m</span>
               </div>
-              <div class="set-rows compact">
-                <div class="set-row"><label>Truss height</label><input type="number" min="1" max="30" step="0.1" data-layout="trussH"><span class="unit">m</span></div>
+
+              <div class="lay-bar-group sep" id="layCustomTools">
+                <button class="flat-btn lay-tool on" data-laytool="select" title="Click selects one · shift-click the range · ⌘-click adds/removes · drag a box · drag a selected fixture to move the selection">Select</button>
+                <button class="flat-btn lay-tool" data-laytool="line" title="Drag a line — the selection spreads evenly along it">Line</button>
+                <button class="flat-btn lay-tool" data-laytool="circle" title="Press at the centre, drag the radius">Circle</button>
+                <button class="flat-btn lay-tool" data-laytool="curve" title="Drag a chord — Bend sets the bow">Curve</button>
+                <label title="Curve bow in metres — negative bows the other way">Bend</label>
+                <input type="range" min="-4" max="4" step="0.1" value="1.2" id="layBend">
+                <span class="u" id="layBendVal">1.2 m</span>
+                <label class="lay-chk" title="Snap positions to 0.1 m"><input type="checkbox" id="laySnap" checked>Snap</label>
+                <button class="flat-btn" id="laySeedBtn" title="Copy the current grid slots into the custom positions">Seed</button>
               </div>
-              <div id="layCustomTools" style="display:none; margin-top:14px;">
-                <div class="section-head">Arrange</div>
-                <div style="display:flex; gap:4px; flex-wrap:wrap; margin-bottom:8px;">
-                  <button class="flat-btn lay-tool on" data-laytool="select" title="Click to select · shift-click selects the patch-order range · drag a box · drag a selected fixture to move the whole selection">Select</button>
-                  <button class="flat-btn lay-tool" data-laytool="line" title="Drag a line — the selection distributes evenly along it">Line</button>
-                  <button class="flat-btn lay-tool" data-laytool="circle" title="Press at the centre, drag the radius — the selection distributes around it">Circle</button>
-                  <button class="flat-btn lay-tool" data-laytool="curve" title="Drag a chord; Bend controls the bow — the selection distributes along the curve">Curve</button>
-                </div>
-                <div class="set-rows compact">
-                  <div class="set-row"><label>Bend</label><input type="range" min="-4" max="4" step="0.1" value="1.2" id="layBend" title="Curve bow in metres — negative bows the other way"><span class="unit" id="layBendVal">1.2 m</span></div>
-                  <div class="set-row"><label>Snap</label><input type="checkbox" id="laySnap" checked><span class="unit">0.1 m</span></div>
-                </div>
-                <div style="display:flex; gap:4px; margin-top:8px; flex-wrap:wrap;">
-                  <button class="flat-btn" id="laySelAllBtn">Select All</button>
-                  <button class="flat-btn" id="laySelNoneBtn">Deselect</button>
-                  <button class="flat-btn" id="laySeedBtn" title="Copy the current grid slots into the custom positions">Seed from Grid</button>
-                </div>
-                <div id="layShapeConfirm" style="display:none; gap:4px; margin-top:8px;">
-                  <button class="flat-btn go" id="layShapeOkBtn" title="Keep this arrangement (Enter)">Confirm Shape</button>
-                  <button class="flat-btn" id="layShapeCancelBtn" title="Put the fixtures back (Esc)">Cancel</button>
-                </div>
-                <p class="lib-note" style="margin-top:8px;">Arrange tools move the <b>selection</b> in patch order (or every fixture when fewer than 2 are selected). After drawing, drag the square handles to resize or move the shape, then Confirm. Effects still read direction spatially — left→right follows real X.</p>
+
+              <div class="lay-bar-group sep">
+                <label title="Height of the truss the rig hangs from">Truss</label>
+                <input type="number" min="1" max="30" step="0.1" data-layout="trussH"><span class="u">m</span>
               </div>
-              <div style="margin-top:14px;">
-                <div class="section-head">Fixtures</div>
-                <div style="display:flex; gap:4px; margin-bottom:6px;">
-                  <button class="flat-btn lay-filter on" data-lfilter="all">All</button>
-                  <button class="flat-btn lay-filter" data-lfilter="placed">Placed</button>
-                  <button class="flat-btn lay-filter" data-lfilter="case">In Case</button>
-                </div>
-                <div id="layFixList"></div>
-                <div style="display:flex; gap:4px; margin-top:6px;">
-                  <button class="flat-btn" id="layPlaceBtn" title="Hang the selected fixtures — back onto the plan at their stored (or grid) position">Place Selected</button>
-                  <button class="flat-btn" id="layCaseBtn" title="Send the selected fixtures to the roadcase — still patched, but off the plan, dark and retracted">To Case</button>
-                </div>
-                <p class="lib-note" style="margin-top:6px;">Click selects one · shift-click selects the range · ⌘-click adds/removes · drawing a shape with cased fixtures selected hangs them onto it</p>
+
+              <div class="lay-bar-group" id="layShapeConfirm">
+                <button class="flat-btn go" id="layShapeOkBtn" title="Keep this arrangement (Enter)">Confirm</button>
+                <button class="flat-btn" id="layShapeCancelBtn" title="Put the fixtures back (Esc)">Cancel</button>
               </div>
-              <div style="margin-top:14px;">
-                <div class="section-head">Start Height</div>
-                <div class="set-rows compact">
-                  <div class="set-row"><label>Rest at</label><input type="number" min="0" max="255" value="0" id="layHomeInp" title="DMX position the fixture rests at when nothing drives it — 0 = fully up"><span class="unit" id="layHomeM">0.00 m</span></div>
-                </div>
-                <div style="display:flex; gap:4px; margin-top:6px;">
-                  <button class="flat-btn" id="layHomeApplyBtn" title="Set the start height of the selected fixtures (or all, when none selected)">Apply</button>
-                  <button class="flat-btn" id="layHomeResetBtn" title="Selected fixtures rest at their top limit again">Reset</button>
-                </div>
-                <p class="lib-note" style="margin-top:8px;" id="laySelInfo">0 selected — select fixtures on the plan (works in both modes)</p>
+
+              <div class="lay-bar-group lay-bar-end">
+                <span class="lay-summary" id="layoutSummary"></span>
+                <button class="flat-btn" id="layClearBtn" style="color:var(--yellow);" title="Send every fixture to the roadcase — still patched, but off the plan. One undo brings them back">Clear Layout</button>
               </div>
-              <div style="margin-top:14px;">
-                <div class="section-head">Selection Groups</div>
-                <div style="display:flex; gap:4px; align-items:center;">
-                  <input type="text" id="groupNameInp" placeholder="Group name" style="flex:1 1 auto; min-width:0; background:var(--recess); border:1px solid var(--hairline); color:var(--text); padding:5px 8px; font-size:11.5px;">
-                  <button class="flat-btn go" id="groupSaveBtn" title="Save the current plan selection as a named group">Save</button>
-                </div>
-                <div id="groupList" style="margin-top:8px;"></div>
-                <p class="lib-note" style="margin-top:6px;">Groups scope cues and timeline tracks to part of the rig. Select fixtures on the plan or in the list above, name them, then Save. Click a saved group to re-select it.</p>
-              </div>
-              <p class="lib-note" style="margin-top:14px;" id="layoutSummary"></p>
             </div>
-            <div style="flex:1 1 auto; min-width:0; padding:14px 16px; display:flex; flex-direction:column;">
-              <div class="section-head">Plan view — top down</div>
-              <canvas id="layoutPlan" style="flex:1 1 auto; min-height:0; width:100%;"></canvas>
-              <div class="plan-legend">
-                <span><i class="lgd rest"></i>rests at top limit</span>
-                <span><i class="lgd start"></i>start height set</span>
-                <span><i class="lgd fault"></i>offline</span>
-                <span><i class="lgd sel"></i>selected</span>
-                <span class="lgd-note">fixtures in the roadcase are not shown</span>
+
+            <div class="lay-main">
+              <!-- PLAN — the working surface, given the room -->
+              <div class="lay-canvas-wrap">
+                <canvas id="layoutPlan"></canvas>
+                <div class="plan-legend">
+                  <span><i class="lgd rest"></i>rests at top limit</span>
+                  <span><i class="lgd start"></i>start height set</span>
+                  <span><i class="lgd fault"></i>offline</span>
+                  <span><i class="lgd sel"></i>selected</span>
+                  <span class="lgd-note">roadcased fixtures are not shown</span>
+                </div>
               </div>
+
+              <!-- INSPECTOR — what is selected, and what to do with it -->
+              <aside class="lay-inspector">
+                <div class="insp-sec">
+                  <div class="insp-head">Fixtures</div>
+                  <div class="insp-row">
+                    <button class="flat-btn lay-filter on" data-lfilter="all">All</button>
+                    <button class="flat-btn lay-filter" data-lfilter="placed">Placed</button>
+                    <button class="flat-btn lay-filter" data-lfilter="case">In Case</button>
+                  </div>
+                  <div id="layFixList"></div>
+                  <div class="insp-row">
+                    <button class="flat-btn" id="laySelAllBtn">Select All</button>
+                    <button class="flat-btn" id="laySelNoneBtn">Deselect</button>
+                  </div>
+                  <div class="insp-row">
+                    <button class="flat-btn" id="layPlaceBtn" title="Hang the selected fixtures back on the plan">Place</button>
+                    <button class="flat-btn" id="layCaseBtn" title="Send the selected fixtures to the roadcase — still patched, dark and retracted">To Case</button>
+                  </div>
+                  <p class="insp-note" id="laySelInfo">0 selected</p>
+                </div>
+
+                <div class="insp-sec">
+                  <div class="insp-head">Start Height</div>
+                  <div class="insp-row">
+                    <input type="number" min="0" max="255" value="0" id="layHomeInp" title="Where the selected fixtures rest when nothing drives them — 0 = fully up">
+                    <span class="u" id="layHomeM">0.00 m</span>
+                  </div>
+                  <div class="insp-row">
+                    <button class="flat-btn" id="layHomeApplyBtn" title="Apply to the selection (or the whole rig when nothing is selected)">Apply</button>
+                    <button class="flat-btn" id="layHomeResetBtn" title="Rest at the top limit again">Reset</button>
+                  </div>
+                </div>
+
+                <div class="insp-sec">
+                  <div class="insp-head">Groups</div>
+                  <div class="insp-row">
+                    <input type="text" id="groupNameInp" placeholder="Name this selection">
+                    <button class="flat-btn go" id="groupSaveBtn" title="Save the current selection as a named group">Save</button>
+                  </div>
+                  <div id="groupList"></div>
+                  <p class="insp-note">Groups scope cues and timeline tracks. Click one to re-select it.</p>
+                </div>
+              </aside>
             </div>
           </div>
           <div class="panel-resize-handle"></div>
@@ -3444,6 +3493,24 @@
     }
     var v = (layDrag && layDrag.view) ? layDrag.view : computePlanView(w, h);
     var spanW = v.maxX-v.minX, spanD = v.maxZ-v.minZ;
+    /* metre grid: gives the plan a sense of real scale instead of dots in a
+       void; the centre lines mark stage centre and the truss datum */
+    if(v.scale > 11){
+      ctx.lineWidth = 1;
+      for(var gx=Math.floor(v.minX)-4; gx<=Math.ceil(v.maxX)+4; gx++){
+        var gpx = planToPx(v, {x:gx, z:0}).x;
+        if(gpx < 0 || gpx > w) continue;
+        ctx.strokeStyle = gx===0 ? 'rgba(255,255,255,.17)' : 'rgba(255,255,255,.05)';
+        ctx.beginPath(); ctx.moveTo(gpx, 0); ctx.lineTo(gpx, h); ctx.stroke();
+      }
+      for(var gz=Math.floor(v.minZ)-4; gz<=Math.ceil(v.maxZ)+4; gz++){
+        var gpy = planToPx(v, {x:0, z:gz}).y;
+        if(gpy < 0 || gpy > h) continue;
+        ctx.strokeStyle = gz===0 ? 'rgba(255,255,255,.17)' : 'rgba(255,255,255,.05)';
+        ctx.beginPath(); ctx.moveTo(0, gpy); ctx.lineTo(w, gpy); ctx.stroke();
+      }
+    }
+    ctx.lineWidth = 1;
     ctx.strokeStyle='rgba(255,255,255,.12)';
     ctx.strokeRect(v.ox-16, v.oy-16, spanW*v.scale+32, spanD*v.scale+32);
     ctx.fillStyle='rgba(156,156,152,.9)'; ctx.font='10px ui-monospace,monospace';
@@ -3502,17 +3569,15 @@
       ctx.fillText('All '+count+' fixtures are in the roadcase — select them in the list and Place, or draw a shape', 20, 34);
     }
     if(summary){
-      var caseTxt = nCase ? ' · '+nCase+' in the case' : '';
-      summary.textContent = layoutIsCustom()
-        ? (count-nCase)+' placed'+caseTxt+' · custom · rig '+spanW.toFixed(1)+' × '+spanD.toFixed(1)+' m · truss at '+(+layout.trussH).toFixed(1)+' m'
-        : (count-nCase)+' placed'+caseTxt+' · '+Math.max(1,layout.cols|0)+' wide grid · rig '+spanW.toFixed(1)+' × '+spanD.toFixed(1)+' m · truss at '+(+layout.trussH).toFixed(1)+' m';
+      var caseTxt = nCase ? ' · '+nCase+' cased' : '';
+      summary.textContent = (count-nCase)+' placed'+caseTxt+' · '+spanW.toFixed(1)+' × '+spanD.toFixed(1)+' m';
     }
     var info = document.getElementById('laySelInfo');
     if(info) info.textContent = layPending
-      ? 'Shape preview — resize with the handles, then Confirm (Enter) or Cancel (Esc)'
+      ? 'Shape preview — drag the handles, then Confirm (Enter) or Cancel (Esc)'
       : laySelCount()
-        ? laySelCount()+' selected — drag to move (Custom) · shift-click ranges · ⌘-click removes'
-        : '0 selected — click a fixture, shift-click another for the range, or use the list';
+        ? laySelCount()+' selected · shift-click ranges · ⌘-click adds or removes'
+        : 'Nothing selected · click a fixture, or shift-click for a range';
     if(renderLayListRef) renderLayListRef();
   }
   function curveCtrl(p0, p1){
@@ -3564,13 +3629,19 @@
         /* seed custom positions from the grid the first time */
         winchData.forEach(function(w2, i2){ if(typeof w2.lx!=='number'){ var pp2 = (function(){ var m2 = layout.mode; layout.mode='grid'; var r2 = fixturePlanPos(i2); layout.mode=m2; return r2; })(); w2.lx = pp2.x; w2.lz = pp2.z; } });
       }
-      document.getElementById('layCustomTools').style.display = layout.mode==='custom' ? '' : 'none';
+      syncLayModeUi();
       applyLayout();
       logLine('Layout: '+(layout.mode==='custom' ? 'custom placement — drag fixtures or use the arrange tools' : 'grid placement'));
     });
+    function syncLayModeUi(){
+      /* grid spacing only means something in Grid; arrange tools only in Custom */
+      var custom = layoutIsCustom();
+      document.getElementById('layCustomTools').style.display = custom ? '' : 'none';
+      document.getElementById('layGridRows').style.display = custom ? 'none' : '';
+    }
     refreshLayoutMode = function(){
       if(setLayModeSeg) setLayModeSeg(layoutIsCustom() ? 'custom' : 'grid');
-      document.getElementById('layCustomTools').style.display = layoutIsCustom() ? '' : 'none';
+      syncLayModeUi();
     };
     refreshLayoutMode();
 
@@ -3670,8 +3741,12 @@
           var tt = Math.max(0, Math.min(1, ((pm0.x-layPending.x0)*vx + (pm0.z-layPending.z0)*vz)/ll));
           nearPath = Math.hypot(pm0.x-(layPending.x0+vx*tt), pm0.z-(layPending.z0+vz*tt))*v2.scale < 12;
         }
-        if(nearPath){ layDrag = { kind:'handle', which:'both', view:v2, lastX:pm0.x, lastZ:pm0.z }; }
-        return;
+        if(nearPath){ layDrag = { kind:'handle', which:'both', view:v2, lastX:pm0.x, lastZ:pm0.z }; return; }
+        /* pressing away from the shape commits it and carries on with the
+           click — swallowing the press instead just feels broken (Esc still
+           cancels, and one undo takes the arrangement back) */
+        resolvePending(true);
+        v2 = currentView();
       }
       if(layoutIsCustom() && layTool!=='select'){
         var pm = pxToPlan(v2, xy.px, xy.py);
