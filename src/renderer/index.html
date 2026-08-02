@@ -868,7 +868,7 @@
                   <button class="flat-btn" id="layPlaceBtn" title="Hang the selected fixtures — back onto the plan at their stored (or grid) position">Place Selected</button>
                   <button class="flat-btn" id="layCaseBtn" title="Send the selected fixtures to the roadcase — still patched, but off the plan, dark and retracted">To Case</button>
                 </div>
-                <p class="lib-note" style="margin-top:6px;">Click toggles · shift-click selects the range · drawing a shape with cased fixtures selected hangs them onto it</p>
+                <p class="lib-note" style="margin-top:6px;">Click selects one · shift-click selects the range · ⌘-click adds/removes · drawing a shape with cased fixtures selected hangs them onto it</p>
               </div>
               <div style="margin-top:14px;">
                 <div class="section-head">Start Height</div>
@@ -3486,9 +3486,10 @@
           return;
         }
         if(e.shiftKey && layAnchor!==null){
-          /* patch-order RANGE from the anchor to here */
+          /* shift-click: the selection BECOMES the patch-order range */
           var ai = winchData.findIndex(function(w2){ return w2.id===layAnchor; });
           if(ai<0) ai = hit;
+          laySel = {};
           var lo = Math.min(ai, hit), hi2 = Math.max(ai, hit);
           for(var k2=lo;k2<=hi2;k2++) laySel[winchData[k2].id] = true;
         } else {
@@ -3699,14 +3700,20 @@
       if(!row) return;
       var wid = +row.getAttribute('data-lid');
       if(e.shiftKey && layAnchor!==null){
+        /* shift-click: the selection BECOMES the range from the anchor */
         var ai = winchData.findIndex(function(w2){ return w2.id===layAnchor; });
         var bi = winchData.findIndex(function(w2){ return w2.id===wid; });
         if(ai>=0 && bi>=0){
+          laySel = {};
           var lo = Math.min(ai,bi), hi2 = Math.max(ai,bi);
           for(var k2=lo;k2<=hi2;k2++) laySel[winchData[k2].id] = true;
         }
-      } else {
+      } else if(e.metaKey || e.ctrlKey){
+        /* cmd-click: add/remove one without touching the rest */
         if(laySel[wid]) delete laySel[wid]; else { laySel[wid] = true; layAnchor = wid; }
+      } else {
+        /* plain click: select just this one */
+        laySel = {}; laySel[wid] = true; layAnchor = wid;
       }
       drawLayoutPlan();
     });
