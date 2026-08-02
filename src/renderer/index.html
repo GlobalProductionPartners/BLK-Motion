@@ -420,6 +420,7 @@
   table.patch select{ max-width:160px; }
   .mono-cell{ font-family:var(--mono); color:var(--text); }
   .proto-cell{ color:var(--text-2); }
+  input.pos-input{ width:62px; padding:4px 6px; font-size:11.5px; text-align:right; }
   input.limit-input{ width:60px; padding:4px 6px; font-size:11.5px; text-align:right; }
   .status-cell{ display:flex; align-items:center; gap:7px; color:var(--text-2); font-size:11px; }
   .status-cell.on{ color:var(--text); }
@@ -779,7 +780,7 @@
             <div class="patch-note" id="patchNote"></div>
             <div class="patch-table-wrap">
               <table class="patch">
-                <thead><tr><th style="width:26px;"><input type="checkbox" id="patchSelAll" title="Select all"></th><th>ID</th><th>Name</th><th>Model</th><th>Fitting</th><th title="Console-input address (universe.channel) — 6 ch per fixture: Intensity, R, G, B, Position, Position fine">Console</th><th>BLK</th><th title="Current position as DMX value">Pos</th><th title="Upper travel limit — DMX 0 is fully up">Top</th><th title="Lower travel limit — DMX 255 is full drop">Bottom</th><th>Max cm/s</th><th>Load</th></tr></thead>
+                <thead><tr><th style="width:26px;"><input type="checkbox" id="patchSelAll" title="Select all"></th><th>ID</th><th>Name</th><th>Model</th><th>Fitting</th><th title="Console-input address (universe.channel) — 6 ch per fixture: Intensity, R, G, B, Position, Position fine">Console</th><th>BLK</th><th title="Current position as DMX value">Pos</th><th title="Stage left ↔ right, metres">X</th><th title="Upstage ↔ downstage (depth), metres">Y</th><th title="Height above the floor, metres — sets the fixture's start height">Z</th><th title="Upper travel limit — DMX 0 is fully up">Top</th><th title="Lower travel limit — DMX 255 is full drop">Bottom</th><th>Max cm/s</th><th>Load</th></tr></thead>
                 <tbody id="patchRows"></tbody>
               </table>
             </div>
@@ -3547,6 +3548,9 @@
   }
   function applyLayout(){
     invalidateRanks();
+    /* the Patch table shows X/Y/Z, so a layout change has to write back
+       there too — dragging or arranging on the plan IS a position edit */
+    if(patchRowsEl && patchRowsEl.childElementCount) renderPatchRows();
     if(rebuildRig) rebuildRig();
     else { GRID_COLS = Math.max(1, layout.cols|0); GRID_ROWS = Math.max(1, Math.ceil(winchData.length/GRID_COLS) || 1); }
     drawLayoutPlan();
@@ -4998,11 +5002,25 @@
         '<td><select class="model-select" data-id="'+w.id+'">'+WINCH_MODELS.map(function(m){return '<option value="'+m.id+'"'+(m.id===w.modelId?' selected':'')+'>'+m.name+'</option>';}).join('')+'</select></td>' +
         '<td><select class="fitting-select" data-id="'+w.id+'">'+FITTINGS.map(function(f){return '<option value="'+f.id+'"'+(f.id===w.fittingId?' selected':'')+'>'+f.name+'</option>';}).join('')+'</select></td>' +
         '<td><input type="text" class="addr-input mono deskaddr-input" data-id="'+w.id+'" value="'+dA.u+'.'+dA.c+'"'+(dA.custom?' style="color:var(--yellow);"':'')+' title="'+(dA.custom?'Custom console address — clear the field to return to automatic':'Automatic console address (patch order) — type universe.channel to override')+(deskEnabled()?'':' · console input is off (Settings → Console & Remote)')+'"></td><td><input type="text" class="addr-input mono" data-id="'+w.id+'" value="'+w.blkAddr+'"></td><td class="mono-cell" title="'+dmxToM(w.pos, modelById(w.modelId)).toFixed(2)+' m below top">'+w.pos+'</td>' +
+        '<td><input type="number" step="0.1" class="pos-input" data-axis="x" data-id="'+w.id+'" value="'+fixturePlanPos(wi).x.toFixed(2)+'"></td>' +
+        '<td><input type="number" step="0.1" class="pos-input" data-axis="y" data-id="'+w.id+'" value="'+fixturePlanPos(wi).z.toFixed(2)+'"></td>' +
+        '<td><input type="number" step="0.1" class="pos-input" data-axis="z" data-id="'+w.id+'" value="'+fixtureHeightM(w).toFixed(2)+'"></td>' +
         '<td><input type="number" class="limit-input" data-limit="top" data-id="'+w.id+'" value="'+w.topLimit+'"><div class="lim-m">'+dmxToM(w.topLimit, modelById(w.modelId)).toFixed(2)+' m</div></td>' +
         '<td><input type="number" class="limit-input" data-limit="bottom" data-id="'+w.id+'" value="'+w.bottomLimit+'"><div class="lim-m">'+dmxToM(w.bottomLimit, modelById(w.modelId)).toFixed(2)+' m</div></td>' +
         '<td><input type="number" class="limit-input" data-maxspeed="1" data-id="'+w.id+'" value="'+w.maxSpeed+'" style="width:56px;'+(overspeed?'color:var(--red);':'')+'" title="Rated: '+modelById(w.modelId).maxSpeedCmS+' cm/s"></td>' +
         '<td class="mono-cell"'+(overload?' style="color:var(--red);" title="Exceeds BLK RISE 1.2 kg cable limit"':'')+'>'+(w.loadKg!==null?w.loadKg.toFixed(1)+' kg':'—')+'</td></tr>';
     }).join('');
+  }
+  /* a fixture's rest height above the floor: the truss, less how far this
+     model's cable is paid out at its rest position */
+  function fixtureRestDmx(w){ return (typeof w.homePos==='number') ? w.homePos : w.topLimit; }
+  function fixtureHeightM(w){
+    return (+layout.trussH||5.2) - dmxToM(fixtureRestDmx(w), modelById(w.modelId));
+  }
+  function setFixtureHeightM(w, z){
+    var drop = (+layout.trussH||5.2) - z;
+    var d = Math.round((drop/modelLiftM(modelById(w.modelId)))*255);
+    w.homePos = Math.max(0, Math.min(255, d));
   }
   function renderPatchSummary(){
     var on=0, warn=0, fault=0;
@@ -5377,6 +5395,35 @@
       if(warned) logLine(val+' cm/s exceeds the rating of '+warned+' fixture'+(warned>1?'s':'')+' — check models','warn');
       logLine('Max speed '+val+' cm/s → '+(ids3.length>1 ? ids3.length+' selected fixtures' : winchById(id).name));
       renderPatchRows(); renderViewportHud();
+      return;
+    }
+    if(t.classList.contains('pos-input')){
+      var axis = t.getAttribute('data-axis');
+      var vP = +t.value;
+      if(!isFinite(vP)){ renderPatchRows(); return; }
+      vP = Math.round(vP*1000)/1000;
+      var idsP = targetIds(id);
+      pushUndo('fixture position', 'fixpos');
+      if(axis==='x' || axis==='y'){
+        /* free XYZ only means anything off the grid */
+        if(!layoutIsCustom()){
+          layout.mode = 'custom';
+          if(refreshLayoutMode) refreshLayoutMode();
+          logLine('Layout switched to Custom — fixtures now hold their own positions');
+        }
+        idsP.forEach(function(id2){
+          var wP = winchById(id2), iP = winchData.indexOf(wP);
+          var cur = fixturePlanPos(iP); /* seeds lx/lz from the grid on first touch */
+          wP.lx = axis==='x' ? vP : cur.x;
+          wP.lz = axis==='y' ? vP : cur.z;
+        });
+      } else {
+        idsP.forEach(function(id2){ setFixtureHeightM(winchById(id2), vP); });
+      }
+      applyLayout();
+      renderPatchRows();
+      logLine(idsP.length>1 ? idsP.length+' fixtures — '+axis.toUpperCase()+' set to '+vP+' m'
+                            : winchById(id).name+' — '+axis.toUpperCase()+' '+vP+' m');
       return;
     }
     if(t.classList.contains('deskaddr-input')){
