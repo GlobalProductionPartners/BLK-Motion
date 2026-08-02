@@ -300,7 +300,8 @@
   #layModeSeg{ display:inline-flex; } /* shrink-wrap so the thumb tracks the buttons */
   #layShapeConfirm{ display:none; }
   #layShapeConfirm.on{ display:flex !important; }
-  #layFixList{ max-height:190px; overflow-y:auto; border:1px solid var(--hairline); background:var(--recess); }
+  #layFixList{ max-height:190px; overflow-y:auto; border:1px solid var(--hairline); background:var(--recess); user-select:none; -webkit-user-select:none; }
+  #layoutPlan, #dockLayout .lay-tool, #dockLayout .section-head{ user-select:none; -webkit-user-select:none; }
   .layfix-row{ display:flex; align-items:center; gap:7px; padding:3px 9px; font-size:10.5px; font-family:var(--mono); color:var(--text-2); }
   .layfix-row:hover{ background:var(--surface-2); }
   .layfix-row .lf-chk{ width:9px; height:9px; border:1px solid var(--text-3); flex:0 0 auto; }
@@ -842,10 +843,11 @@
                   <div class="set-row"><label>Bend</label><input type="range" min="-4" max="4" step="0.1" value="1.2" id="layBend" title="Curve bow in metres — negative bows the other way"><span class="unit" id="layBendVal">1.2 m</span></div>
                   <div class="set-row"><label>Snap</label><input type="checkbox" id="laySnap" checked><span class="unit">0.1 m</span></div>
                 </div>
-                <div style="display:flex; gap:4px; margin-top:8px;">
+                <div style="display:flex; gap:4px; margin-top:8px; flex-wrap:wrap;">
                   <button class="flat-btn" id="laySelAllBtn">Select All</button>
-                  <button class="flat-btn" id="laySelNoneBtn">Clear</button>
+                  <button class="flat-btn" id="laySelNoneBtn">Clear Sel</button>
                   <button class="flat-btn" id="laySeedBtn" title="Copy the current grid slots into the custom positions">Seed from Grid</button>
+                  <button class="flat-btn" id="layClearBtn" title="Wipe the layout: custom positions and start heights go back to the plain grid">Clear Layout</button>
                 </div>
                 <div id="layShapeConfirm" style="display:none; gap:4px; margin-top:8px;">
                   <button class="flat-btn go" id="layShapeOkBtn" title="Keep this arrangement (Enter)">Confirm Shape</button>
@@ -3388,6 +3390,7 @@
     function snapM(val){ return document.getElementById('laySnap').checked ? Math.round(val*10)/10 : val; }
     planCv.addEventListener('pointerdown', function(e){
       if(!winchData.length) return;
+      e.preventDefault(); /* no native text-selection highlight while dragging */
       try { planCv.setPointerCapture(e.pointerId); } catch(_e){ /* synthetic events */ }
       var xy = planXY(e), v2 = currentView();
       if(layPending){
@@ -3596,6 +3599,16 @@
       });
     }
     renderLayListRef = renderLayList;
+    document.getElementById('layClearBtn').addEventListener('click', function(){
+      resolvePending(false);
+      pushUndo('clear layout');
+      winchData.forEach(function(w2){ delete w2.lx; delete w2.lz; delete w2.homePos; });
+      laySel = {}; layAnchor = null;
+      applyLayout();
+      logLine('Layout cleared — grid positions and top-limit start heights restored');
+    });
+    /* shift-click must range-select, never start a native text selection */
+    document.getElementById('layFixList').addEventListener('mousedown', function(e){ e.preventDefault(); });
     document.getElementById('layFixList').addEventListener('click', function(e){
       var row = e.target.closest ? e.target.closest('.layfix-row') : null;
       if(!row) return;
