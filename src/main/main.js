@@ -7,6 +7,7 @@ const ArtNet = require('../protocols/artnet');
 const SACN = require('../protocols/sacn');
 const OSC = require('../protocols/osc');
 const UsbDmx = require('../protocols/usbdmx');
+const SacnIn = require('../protocols/sacn-in');
 const license = require('./license');
 
 let mainWindow = null;
@@ -14,6 +15,8 @@ let artnet = null;
 let sacn = null;
 let osc = null;
 let usbdmx = null;
+let sacnIn = null;
+let deskCfg = { proto: 'off', universes: [] }; // console-input config, from renderer
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -173,6 +176,10 @@ function reportNetError(proto, err) {
   if (mainWindow) mainWindow.webContents.send('net:status', { proto, state: 'error', message });
 }
 
+function forwardDeskDmx(pkt) {
+  if (mainWindow) mainWindow.webContents.send('desk:dmx', { universe: pkt.universe, data: Buffer.from(pkt.data) });
+}
+
 function startArtnet(opts = {}) {
   if (artnet) artnet.close();
   artnet = new ArtNet(opts);
@@ -180,6 +187,30 @@ function startArtnet(opts = {}) {
   artnet.on('poll-reply', (info) => {
     if (mainWindow) mainWindow.webContents.send('artnet:poll-reply', info);
   });
+  artnet.on('dmx-in', forwardDeskDmx);
+  // a Settings-page socket rebind must keep listening for the console
+  if (deskCfg.proto === 'artnet') artnet.setInputUniverses(deskCfg.universes);
+}
+
+function applyDeskConfig(cfg) {
+  deskCfg = {
+    proto: ['artnet', 'sacn'].includes(cfg && cfg.proto) ? cfg.proto : 'off',
+    universes: (Array.isArray(cfg && cfg.universes) ? cfg.universes : []).slice(0, 16).map((u) => Math.max(0, Math.min(63999, u | 0)))
+  };
+  if (artnet) artnet.setInputUniverses(deskCfg.proto === 'artnet' ? deskCfg.universes : []);
+  if (deskCfg.proto === 'sacn') {
+    if (!sacnIn) {
+      sacnIn = new SacnIn();
+      sacnIn.on('error', (err) => reportNetError('sACN input', err));
+      sacnIn.on('dmx', forwardDeskDmx);
+    }
+    sacnIn.ownCid = sacn ? sacn.cid : null;
+    sacnIn.setUniverses(deskCfg.universes);
+  } else if (sacnIn) {
+    sacnIn.close();
+    sacnIn = null;
+  }
+  return { ok: true, proto: deskCfg.proto, universes: deskCfg.universes };
 }
 
 function startOsc(listenPort) {
@@ -220,6 +251,7 @@ app.on('window-all-closed', () => {
   if (sacn) sacn.close();
   if (osc) osc.close();
   if (usbdmx) usbdmx.close();
+  if (sacnIn) sacnIn.close();
   if (process.platform !== 'darwin') app.quit();
 });
 
@@ -302,6 +334,10 @@ ipcMain.handle('net:interfaces', () => {
   });
   return out;
 });
+
+/* ---------- IPC: console (desk) input ---------- */
+
+ipcMain.handle('desk:config', (_event, cfg) => applyDeskConfig(cfg));
 
 /* ---------- IPC: licensing (hardware-locked, offline after activation) ---------- */
 

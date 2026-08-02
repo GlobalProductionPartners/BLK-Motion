@@ -1,4 +1,5 @@
 const dgram = require('dgram');
+const os = require('os');
 const EventEmitter = require('events');
 
 const ARTNET_PORT = 6454;
@@ -20,6 +21,7 @@ class ArtNet extends EventEmitter {
     this.broadcast = broadcast;   // broadcast or unicast target address
     this.socket = dgram.createSocket({ type: 'udp4', reuseAddr: true });
     this.seq = 1;
+    this.inputUniverses = new Set(); // console-input universes we listen for
 
     this.socket.on('message', (msg, rinfo) => this._handleMessage(msg, rinfo));
     this.socket.on('error', (err) => this.emit('error', err));
@@ -34,7 +36,31 @@ class ArtNet extends EventEmitter {
     const opCode = msg.readUInt16LE(8);
     if (opCode === OP_POLL_REPLY) {
       this.emit('poll-reply', this._parsePollReply(msg, rinfo));
+    } else if (opCode === OP_DMX && this.inputUniverses.size && msg.length >= 20) {
+      // Console input. Our own broadcast output loops back on this same
+      // socket — drop packets whose source is a local address on OUR port so
+      // an overlapping universe can never feed the engine its own output.
+      const universe = msg[14] | (msg[15] << 8);
+      if (!this.inputUniverses.has(universe)) return;
+      if (rinfo.port === this.port && this._isLocalAddress(rinfo.address)) return;
+      const len = Math.min(msg.readUInt16BE(16), 512, msg.length - 18);
+      if (len > 0) this.emit('dmx-in', { universe, data: msg.subarray(18, 18 + len) });
     }
+  }
+
+  setInputUniverses(list) {
+    this.inputUniverses = new Set(list || []);
+  }
+
+  _isLocalAddress(addr) {
+    if (addr === '127.0.0.1') return true;
+    if (!this._localAddrs || Date.now() - this._localAddrsAt > 30000) {
+      this._localAddrs = new Set();
+      const ifs = os.networkInterfaces();
+      Object.keys(ifs).forEach((n) => (ifs[n] || []).forEach((a) => this._localAddrs.add(a.address)));
+      this._localAddrsAt = Date.now();
+    }
+    return this._localAddrs.has(addr);
   }
 
   _parsePollReply(msg, rinfo) {

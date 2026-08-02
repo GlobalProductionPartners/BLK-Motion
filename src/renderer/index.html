@@ -76,9 +76,6 @@
   .wordmark svg{ height:12px; width:auto; color:var(--text); }
   .wordmark .sep{ width:1px; height:14px; background:var(--hairline); }
   .wordmark .label{ font-family:var(--display); text-transform:uppercase; font-size:12px; letter-spacing:.12em; color:var(--text-2); }
-  /* narrow windows: the logo mark carries the brand alone so the safety
-     controls always fit — replaces the old dead 980px breakpoint */
-  @media (max-width:1200px){ .wordmark .label, .wordmark .sep{ display:none; } }
   .crumb{ font-size:12.5px; color:var(--text-2); display:block;
     min-width:72px; max-width:220px; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; flex:0 1 auto; }
   .crumb b{ color:var(--text); font-weight:600; }
@@ -107,7 +104,7 @@
   .sys-state.paused{ background:var(--yellow); color:#000; }
   .sys-state.editing{ background:var(--blue); color:#fff; }
   .sys-state.estop{ background:var(--red); color:#fff; }
-  .active-cue{ display:flex; flex-direction:column; gap:1px; min-width:0; }
+  .active-cue{ display:flex; flex-direction:column; gap:1px; flex:0 0 auto; }
   .active-cue label{ font-size:10px; text-transform:uppercase; letter-spacing:.09em; color:var(--text-3); white-space:nowrap; }
   .active-cue b{ font-family:var(--display); font-size:14px; text-transform:uppercase; color:var(--text); max-width:120px; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
   .safety-cluster{ display:flex; gap:10px; padding-left:6px; flex:0 0 auto; }
@@ -298,6 +295,16 @@
 
   /* ---- Buttons ---- */
   .flat-btn{ background:var(--surface-2); color:var(--text-2); font-size:11.5px; padding:7px 14px; }
+
+  /* settings tabs */
+  .set-tabs{ display:flex; gap:2px; padding:8px 20px 0; flex:0 0 auto; background:var(--surface); }
+  .set-tabs button{ background:var(--surface-2); color:var(--text-2); font-size:10.5px; padding:6px 14px; text-transform:uppercase; letter-spacing:.05em; }
+  .set-tabs button:hover{ color:var(--text); }
+  .set-tabs button.active{ background:var(--text); color:#000; font-weight:600; }
+
+  /* titlebar licensing chip */
+  .lic-chip{ background:var(--yellow); color:#000; font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.05em; padding:4px 8px; flex:0 0 auto; }
+  .lic-chip:hover{ background:#f0b64f; }
 
   /* activation gate */
   #licenseGate{ position:fixed; inset:0; z-index:3000; background:rgba(8,8,9,.96); display:flex; align-items:center; justify-content:center; }
@@ -521,6 +528,21 @@
   .set-rows.compact input[type=number]{ width:90px; }
   .net-if{ display:flex; gap:14px; align-items:baseline; font-family:var(--mono); font-size:11.5px; color:var(--text-2); padding:5px 0; border-bottom:1px solid var(--hairline); }
   .net-if b{ color:var(--text); min-width:70px; display:inline-block; }
+  /* narrow windows: the logo mark carries the brand alone and every titlebar
+     control compacts, so the full safety cluster + STOP always fit at the
+     1024px minimum even with the Unlicensed chip showing */
+  @media (max-width:1200px){
+    .wordmark .label, .wordmark .sep{ display:none; }
+    .active-cue{ display:none; } /* running cue is visible on its grid tile */
+    .titlebar{ gap:8px; }
+    .crumb{ min-width:60px; }
+    .lic-chip{ padding:4px 6px; letter-spacing:.02em; }
+    #modeSeg button{ padding:5px 6px; }
+    #pauseBtn, #btnHome{ padding:7px 8px; }
+    .btn-stop{ padding:0 10px; }
+    .safety-cluster{ gap:6px; padding-left:0; }
+    .safety-cluster .vp-stat b{ max-width:70px; }
+  }
 </style>
 
 <div class="titlebar">
@@ -537,6 +559,7 @@
   </div>
   <div class="crumb" id="crumbShow">Untitled Show</div>
   <span class="sys-state idle" id="sysState">Idle</span>
+  <button class="lic-chip" id="licChip" hidden title="Not licensed — click to activate">Unlicensed</button>
   <div class="active-cue"><label>Active cue</label><b id="activeCueName">—</b></div>
   <div class="safety-cluster">
     <span class="vp-stat" title="Winches the active cue would push past their rated speed"><span class="indicator safe" id="speedIndicator"></span>Speed <b id="speedStatus">24/24</b></span>
@@ -838,9 +861,16 @@
             <button class="panel-head-btn" data-float="panelSettings" title="Float"><svg viewBox="0 0 16 16" width="13" height="13"><path d="M6.5 3.5h-3v9h9v-3M9.5 3.5h3v3M12.5 3.5L8 8" fill="none" stroke="currentColor" stroke-width="1.4"/></svg></button>
             <button class="panel-head-btn" data-close="panelSettings" title="Close"><svg viewBox="0 0 16 16" width="13" height="13"><path d="M4 4l8 8M12 4l-8 8" fill="none" stroke="currentColor" stroke-width="1.4"/></svg></button>
           </div>
+          <div class="set-tabs" id="setTabs">
+            <button data-settab="general" class="active">General</button>
+            <button data-settab="output">Output</button>
+            <button data-settab="console">Console &amp; Remote</button>
+            <button data-settab="network">Network</button>
+            <button data-settab="license">License</button>
+          </div>
           <div class="panel-body" style="overflow-y:auto; padding:18px 20px;">
 
-            <div class="lib-section">
+            <div class="lib-section" data-setsec="general">
               <div class="section-head">General</div>
               <div class="set-rows">
                 <div class="set-row"><label>Show name</label><input type="text" data-set="showName"></div>
@@ -854,7 +884,7 @@
               </div>
             </div>
 
-            <div class="lib-section">
+            <div class="lib-section" data-setsec="output">
               <div class="section-head">DMX Output</div>
               <p class="lib-note">Both protocols stream the same universes from the output engine. Rate and sACN options apply immediately; Art-Net socket changes rebind in the desktop app.</p>
               <div class="set-rows">
@@ -868,7 +898,7 @@
               </div>
             </div>
 
-            <div class="lib-section">
+            <div class="lib-section" data-setsec="output">
               <div class="section-head">USB DMX</div>
               <p class="lib-note">Direct output through a USB-DMX widget — ENTTEC DMX USB Pro / Open DMX USB and DMX King ultraDMX (Pro-protocol compatible). One universe per widget; desktop app only.</p>
               <div class="set-rows">
@@ -879,7 +909,7 @@
               </div>
             </div>
 
-            <div class="lib-section">
+            <div class="lib-section" data-setsec="console">
               <div class="section-head">OSC Remote</div>
               <p class="lib-note">Inbound UDP control from QLab / TouchDesigner / Ableton: <span class="mono">/blk/cue/&lt;n&gt;</span> · <span class="mono">/blk/playback/&lt;colour&gt;/start|stop</span> · <span class="mono">/blk/pause</span> · <span class="mono">/blk/allstop</span></p>
               <div class="set-rows">
@@ -888,7 +918,20 @@
               </div>
             </div>
 
-            <div class="lib-section">
+            <div class="lib-section" data-setsec="console">
+              <div class="section-head">Console Input — Desk Takeover</div>
+              <p class="lib-note">Drive the rig from a lighting console over Art-Net or sACN. Each toggle hands that parameter <b>entirely</b> to the desk — the app's cues and timeline are bypassed for it. Patched Top/Bottom limits, rated winch speed and E-Stop are always still enforced on whatever the console sends.</p>
+              <div class="set-rows">
+                <div class="set-row"><label>Input protocol</label><select data-set="deskProto"><option value="off">Off</option><option value="artnet">Art-Net</option><option value="sacn">sACN (E1.31)</option></select></div>
+                <div class="set-row"><label>Console universe</label><input type="number" min="0" max="63999" data-set="deskUniverse"><span class="unit">first input universe — big rigs continue on the next automatically</span></div>
+                <div class="set-row"><label>Intensity from Desk</label><input type="checkbox" data-set="deskIntensity"><span class="unit">dimmer comes only from the console (1:1, no gamma)</span></div>
+                <div class="set-row"><label>Colour from Desk</label><input type="checkbox" data-set="deskColour"><span class="unit">RGB comes only from the console</span></div>
+                <div class="set-row"><label>Position from Desk</label><input type="checkbox" data-set="deskPosition"><span class="unit">height comes only from the console — 16-bit, limits + speed + E-Stop still apply</span></div>
+              </div>
+              <div id="deskMap" style="margin-top:10px;"></div>
+            </div>
+
+            <div class="lib-section" data-setsec="license">
               <div class="section-head">License</div>
               <p class="lib-note">Hardware-locked: activation needs the internet once per machine, then the license lives in a signed local file and the app runs fully offline — including on isolated show networks.</p>
               <div class="set-rows">
@@ -900,7 +943,7 @@
               </div>
             </div>
 
-            <div class="lib-section">
+            <div class="lib-section" data-setsec="network">
               <div class="section-head">Network Interfaces</div>
               <div class="set-rows">
                 <div class="set-row"><button class="flat-btn" id="netRefreshBtn">Refresh</button><span class="unit">IPv4 interfaces the protocols can reach the rig through</span></div>
@@ -1343,13 +1386,56 @@
     outputRateHz:25,
     oscEnabled:true, oscPort:8000,
     usbEnabled:false, usbDevice:'', usbMode:'pro', usbUniverse:2,
-    licenseServer:''
+    licenseServer:'',
+    deskProto:'off', deskUniverse:10, deskIntensity:false, deskColour:false, deskPosition:false
   };
   var settings = (function(){
     try { return Object.assign({}, SETTINGS_DEFAULTS, JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}')); }
     catch(_e){ return Object.assign({}, SETTINGS_DEFAULTS); }
   })();
   function saveSettings(){ try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); } catch(_e){} }
+  /* ==========================================================================
+     CONSOLE (DESK) INPUT — a lighting desk drives the rig over Art-Net or
+     sACN. Each enabled toggle hands that parameter ENTIRELY to the console
+     (cues bypassed for it). Footprint: 6 ch per fixture in patch order —
+     Intensity, R, G, B, Position coarse, Position fine — 85 fixtures per
+     universe, continuing on the next. Limits, rated speed and E-Stop always
+     still apply to whatever the desk sends.
+     ========================================================================== */
+  var deskIn = { bufs:{}, pkts:0 };
+  var DESK_FOOT = 6, DESK_PER_UNI = 85; /* 85 × 6 = 510 channels */
+  function deskEnabled(){ return settings.deskProto==='artnet' || settings.deskProto==='sacn'; }
+  function deskBytes(i){
+    var u = (Math.round(+settings.deskUniverse)||1) + Math.floor(i/DESK_PER_UNI);
+    var b = deskIn.bufs[u];
+    if(!b) return null;
+    var ch = (i%DESK_PER_UNI)*DESK_FOOT;
+    return b.length >= ch+DESK_FOOT ? b.subarray(ch, ch+DESK_FOOT) : null;
+  }
+  function pushDeskConfig(){
+    if(!(window.blk && window.blk.desk)) return;
+    var count = Math.max(1, Math.ceil(Math.max(1, winchData.length)/DESK_PER_UNI));
+    var start = Math.round(+settings.deskUniverse)||1;
+    var unis = []; for(var k=0;k<count;k++) unis.push(start+k);
+    window.blk.desk.config({ proto: settings.deskProto||'off', universes: unis });
+  }
+  function renderDeskMap(){
+    var el = document.getElementById('deskMap'); if(!el) return;
+    if(!deskEnabled()){ el.innerHTML=''; return; }
+    if(!winchData.length){ el.innerHTML='<p class="lib-note">No fixtures patched — nothing for the console to control yet.</p>'; return; }
+    var start = Math.round(+settings.deskUniverse)||1;
+    var outUnis = {};
+    winchData.forEach(function(w){ outUnis[parseInt(w.blkAddr)||0]=1; });
+    var count = Math.ceil(winchData.length/DESK_PER_UNI), overlap = [], html = '';
+    for(var k=0;k<count;k++){ if(outUnis[start+k]) overlap.push(start+k); }
+    if(overlap.length) html += '<p class="lib-note" style="color:var(--yellow);">⚠ Console universe '+overlap.join(', ')+' is also a DMX <b>output</b> universe. Loopback is filtered, but patch the console on a free universe to keep things unambiguous.</p>';
+    for(var k2=0;k2<count;k2++){
+      var a = k2*DESK_PER_UNI+1, b = Math.min(winchData.length, (k2+1)*DESK_PER_UNI);
+      html += '<div class="mono" style="font-size:10.5px; color:var(--text-2); padding:1px 0;">Fixtures '+a+'–'+b+' → universe '+(start+k2)+' ch 1–'+((b-a+1)*DESK_FOOT)+'</div>';
+    }
+    html += '<div class="mono" style="font-size:10.5px; color:var(--text-3); padding:1px 0;">per fixture: Intensity · Red · Green · Blue · Position · Position fine (16-bit)</div>';
+    el.innerHTML = html;
+  }
   function pushNetworkSettings(){
     if(!(window.blk && window.blk.settings)) return;
     window.blk.settings.applyNetwork({
@@ -3273,6 +3359,10 @@
   var restartOutputTimer = null; /* assigned by the output engine (desktop app only) */
   function applySettingSideEffects(key){
     if(key==='showName') updateShowTitle();
+    if(key.indexOf('desk')===0){
+      pushDeskConfig(); renderDeskMap();
+      if(key==='deskProto') logLine(deskEnabled() ? 'Console input listening — '+settings.deskProto+' from universe '+settings.deskUniverse : 'Console input off');
+    }
     if(key==='defaultSpeedCmS') DEFAULT_SPEED_CMS = Math.max(1, +settings.defaultSpeedCmS || 75);
     if(key==='outputRateHz' && restartOutputTimer) restartOutputTimer();
     if(NETWORK_KEYS[key]) pushNetworkSettings();
@@ -3304,8 +3394,20 @@
       if(sel.value !== (settings.usbDevice||'')) sel.value = ''; /* stored device not currently present */
     });
   }
+  var openSettingsTab = null; /* assigned in wireSettingsPage */
   function wireSettingsPage(){
     updateShowTitle();
+    var setTabBtns = document.querySelectorAll('#setTabs button');
+    openSettingsTab = function(name){
+      Array.prototype.forEach.call(setTabBtns, function(b){ b.classList.toggle('active', b.getAttribute('data-settab')===name); });
+      Array.prototype.forEach.call(document.querySelectorAll('#dockSettings .lib-section[data-setsec]'), function(sec){
+        sec.style.display = sec.getAttribute('data-setsec')===name ? '' : 'none';
+      });
+    };
+    Array.prototype.forEach.call(setTabBtns, function(b){
+      b.addEventListener('click', function(){ openSettingsTab(b.getAttribute('data-settab')); });
+    });
+    openSettingsTab('general');
     Array.prototype.slice.call(document.querySelectorAll('#dockSettings [data-set]')).forEach(function(inp){
       var key = inp.getAttribute('data-set');
       if(inp.type==='checkbox') inp.checked = !!settings[key];
@@ -3331,6 +3433,7 @@
     document.getElementById('usbRefreshBtn').addEventListener('click', renderUsbDevices);
     renderNetInterfaces();
     renderUsbDevices();
+    renderDeskMap();
   }
 
   /* ==========================================================================
@@ -3949,6 +4052,7 @@
     if(el) el.innerHTML = '<span class="sum" title="Online"><span class="dot" style="background:var(--green)"></span>'+on+'</span>' +
       '<span class="sum" title="Warning — feedback drift"><span class="dot" style="background:var(--yellow)"></span>'+warn+'</span>' +
       '<span class="sum" title="Fault — not responding"><span class="dot" style="background:var(--red)"></span>'+fault+'</span>';
+    pushDeskConfig(); renderDeskMap();
   }
   renderModelsTable(); renderFittingsTable(); renderPatchRows(); renderPatchSummary(); renderPatchNote();
   document.getElementById('addFixturesBtn').addEventListener('click', function(){
@@ -4469,6 +4573,7 @@
     var baseCue = IDLE_CUE;
     var basePlaying = false;
     var t = showClock;
+    var deskOn = deskEnabled(); /* console takeover toggles read live below */
 
     for(var i=0;i<n;i++){
       var w = winchData[i], o = engState.out[i];
@@ -4532,9 +4637,19 @@
            with Low = 0 that is rest, giving a clean ramp-in every time */
         var dropMm = mP.low + wv*(mP.high - mP.low);
         var demand = (dropMm/(liftM*1000))*255; /* cue mm → this model's real travel */
+        var dk = deskOn ? deskBytes(i) : null;
         if(activeAnim.parked){
           /* STOP MOTION: hold exactly where we are — no new movement */
           target = stopHold[w.id]!==undefined ? stopHold[w.id] : engState.cur[i];
+        } else if(deskOn && settings.deskPosition){
+          /* desk owns position outright — cues bypassed. No data yet = no
+             movement; never chase an absent console. */
+          if(dk){
+            target = w.topLimit + ((dk[4]*256 + dk[5])/65535)*(w.bottomLimit - w.topLimit);
+            delete stopHold[w.id];
+          } else {
+            target = stopHold[w.id]!==undefined ? stopHold[w.id] : engState.cur[i];
+          }
         } else if(!motionClaimed && stopHold[w.id]!==undefined){
           /* after a reset, keep holding until a source addresses this
              fixture's motion, or HOME ALL recalls it */
@@ -4560,6 +4675,11 @@
           o.b = lo[2]+(hi[2]-lo[2])*cwv;
         }
 
+        if(deskOn && settings.deskColour){
+          /* desk owns colour outright */
+          o.r = dk ? dk[1] : 0; o.g = dk ? dk[2] : 0; o.b = dk ? dk[3] : 0;
+        }
+
         /* dimmer — same gamma on screen and on the wire */
         var dph = combinedPhase(col, row, GRID_COLS, GRID_ROWS, dSrc.mx, dSrc.my)*(dSync?distSpread(dCue.motion):distSpread(dP));
         var dwv;
@@ -4572,6 +4692,11 @@
         var dim = Math.max(0, Math.min(1, (dP.low + dwv*(dP.high-dP.low))/100));
         if(activeAnim.parked || dSel.dark) dim = 0; /* pre-set container: dark move */
         o.dim = Math.pow(dim, 1.8);
+        if(deskOn && settings.deskIntensity && !activeAnim.parked){
+          /* desk owns intensity outright — linear so the console byte IS the
+             wire byte. E-Stop dark still wins. */
+          o.dim = (dk ? dk[0] : 0)/255;
+        }
         o.strobe = 0;
         /* E-stop is a panic: command the model's full rated speed */
         o.speedScale = activeAnim.parked ? (wm.maxSpeedCmS||75)/Math.max(1, w.maxSpeed) : 1;
@@ -5021,6 +5146,13 @@
     txSpan.innerHTML = '<span class="indicator" id="txInd"></span>TX <b id="txStat">—</b>';
     var cluster = document.querySelector('.safety-cluster');
     if(cluster) cluster.appendChild(txSpan);
+    var deskSpan = document.createElement('span');
+    deskSpan.className = 'vp-stat';
+    deskSpan.style.display = 'none';
+    deskSpan.title = 'Console input — packets/s from the desk and which parameters it owns';
+    deskSpan.innerHTML = '<span class="indicator" id="deskInd"></span>DESK <b id="deskStat">—</b>';
+    if(cluster) cluster.appendChild(deskSpan);
+    var lastDeskCount = 0;
     var lastCount = 0;
     setInterval(function(){
       var fps = txFrames - lastCount; lastCount = txFrames;
@@ -5030,6 +5162,15 @@
       else if(!winchData.length){ ind.className='indicator'; st.textContent='no patch'; txSpan.title='No fixtures patched — nothing to output'; }
       else if(!settings.artnetEnabled && !settings.sacnEnabled && !settings.usbEnabled){ ind.className='indicator'; st.textContent='off'; txSpan.title='All output protocols disabled — enable in Settings'; }
       else { ind.className='indicator safe'; st.textContent=fps+' Hz · '+(lastUniList||'—'); txSpan.title='Live DMX output — Art-Net broadcast + sACN multicast'; }
+      var dOn = deskEnabled();
+      deskSpan.style.display = dOn ? '' : 'none';
+      if(dOn){
+        var dfps = deskIn.pkts - lastDeskCount; lastDeskCount = deskIn.pkts;
+        var letters = [settings.deskIntensity?'I':null, settings.deskColour?'C':null, settings.deskPosition?'P':null].filter(Boolean).join('·') || 'no takeover';
+        var dInd = document.getElementById('deskInd'), dSt = document.getElementById('deskStat');
+        dInd.className = 'indicator' + (dfps>0 ? ' safe' : '');
+        dSt.textContent = (dfps>0 ? dfps+'/s' : 'no signal')+' · '+letters;
+      }
     }, 1000);
 
     /* Socket-level protocol errors (port in use, unreachable target) land in
@@ -5218,6 +5359,15 @@
       });
     });
 
+    /* ---------- console (desk) input: buffer frames, push listen config ---------- */
+    if(window.blk.desk){
+      window.blk.desk.onDmx(function(pkt){
+        deskIn.bufs[pkt.universe] = pkt.data;
+        deskIn.pkts++;
+      });
+      pushDeskConfig();
+    }
+
     /* ---------- licensing: status display, activation, packaged-build gate ---------- */
     (function(){
       if(!window.blk.license) return;
@@ -5235,6 +5385,7 @@
           el.textContent = st.error ? 'Unlicensed — '+st.error : 'Unlicensed';
           el.style.color = st.error ? 'var(--red)' : 'var(--text-2)';
         }
+        document.getElementById('licChip').hidden = !!st.licensed;
         document.getElementById('licKeyInp').style.display = keyRowVisible ? '' : 'none';
         document.getElementById('licActivateBtn').style.display = keyRowVisible ? '' : 'none';
         document.getElementById('licDeactivateBtn').style.display = st.licensed ? '' : 'none';
@@ -5277,6 +5428,10 @@
             msgEl.textContent = (res && res.error) || 'Deactivation failed';
           }
         });
+      });
+      document.getElementById('licChip').addEventListener('click', function(){
+        document.querySelector('.rail-btn[data-view="settings"]').click();
+        if(openSettingsTab) openSettingsTab('license');
       });
       window.blk.license.status().then(applyStatus);
     })();
