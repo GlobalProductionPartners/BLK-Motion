@@ -6,4 +6,4 @@ compatibility_date = "2026-07-01"
 binding = "DB"
 database_name = "blk-motion-license"
 # database_id is filled in after `wrangler d1 create blk-motion-license`
-database_id = "REPLACE-ME"
+database_id = "cc2ac360-d81b-4b32-9045-fea233b01ea3"

@@ -19,11 +19,11 @@ const { app } = require('electron');
 // a Cloudflare Worker secret (see licensing/README.md). Rotating the pair
 // invalidates every issued license — regenerate only on purpose.
 const LICENSE_PUBLIC_KEY = `-----BEGIN PUBLIC KEY-----
-MCowBQYDK2VwAyEAOA6EH6hzsCNYomDcXEkz/oAclfetiCOmZ58hylhOEh4=
+MCowBQYDK2VwAyEApsOaVD8qt3LLkL0BJ3RhNhmdzXDX6gRYsxZlMi8QYm0=
 -----END PUBLIC KEY-----`;
 
 // Default server; overridable per-install from Settings → License → Server.
-const LICENSE_SERVER = 'https://blk-motion-license.workers.dev';
+const LICENSE_SERVER = 'https://blk-motion-license.jason-8b6.workers.dev';
 
 const PRODUCT = 'blk-motion';
 
