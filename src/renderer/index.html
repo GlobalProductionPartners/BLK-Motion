@@ -6026,7 +6026,7 @@
         var wk = winchData[k];
         engState.ids[k] = wk.id;
         engState.cur[k] = (prevPos[wk.id]!==undefined) ? prevPos[wk.id] : Math.min(wk.topLimit, wk.bottomLimit);
-        engState.out[k] = { dmx:engState.cur[k], r:0, g:0, b:0, dim:0, limited:false, strobe:0, speedScale:1 };
+        engState.out[k] = { dmx:engState.cur[k], sim:engState.cur[k], r:0, g:0, b:0, dim:0, limited:false, strobe:0, speedScale:1 };
       }
     }
     var dt = engState.t===null ? 0 : Math.min(0.1, Math.max(0, showClock-engState.t));
@@ -6244,8 +6244,16 @@
          channel's patched Top/Bottom window */
       target = Math.max(minLimit, Math.min(maxLimit, target));
 
-      /* slew: chase the demand at no more than the winch's effective real
-         speed: operator cap × per-model calibration × test speed scale */
+      /* THE WIRE GETS THE TARGET, UNSLEWED. These are position-control
+         winches with their own speed channel and their own motion ramp —
+         software-slewing the command fought that, and the rig could never
+         match a profile the app invented. Send where it should go; the motor
+         decides how it gets there. */
+      o.dmx = target;
+
+      /* Everything below simulates where the motor ACTUALLY is, so the
+         Monitor shows the rig rather than the command. Calibration tunes this
+         simulation; it no longer changes a single byte of output. */
       o.limited = false;
       /* which way is this move going? Rising DMX = paying out = travelling
          DOWN. Each direction slews at its own measured speed. */
@@ -6255,7 +6263,7 @@
          in one frame so the physical motor free-runs at its own top speed —
          a ramped command would only ever measure our current assumption */
       if(calibrating || snapRecallIds[w.id]){
-        engState.cur[i] = target;
+        engState.cur[i] = target; engState.vel[i] = 0;
         if(snapRecallIds[w.id]) delete snapRecallIds[w.id];
       }
       else {
@@ -6283,7 +6291,7 @@
         engState.vel[i] = v;
         if(Math.abs(dpos) > Math.abs(v*dt)*1.2) o.limited = true;
       }
-      o.dmx = engState.cur[i];
+      o.sim = engState.cur[i];   /* what the Monitor draws */
     }
     return engState.out;
   }
@@ -6297,11 +6305,8 @@
     var pos8 = Math.floor(posF);
     var posFine = Math.round((posF-pos8)*255);
     /* hardware speed channel is inverted: 0 = fast, 255 = slow */
-    /* The app owns the motion profile, so the fixture is asked for HEADROOM
-       above the commanded slew — told to run at exactly the rate the command
-       moves, it can never make up the ground it loses accelerating, and
-       arrives late on every move. */
-    var cmdCmS = w.maxSpeed * (o.speedScale||1) * 1.5;
+    /* the motor owns the move, so it is simply told how fast to make it */
+    var cmdCmS = w.maxSpeed * (o.speedScale||1);
     var speedByte = Math.round((1 - Math.max(0, Math.min(1, cmdCmS/(m.maxSpeedCmS||75))))*255);
     var dimByte = Math.round(Math.max(0, Math.min(1, o.dim))*255);
     var r = Math.round(o.r), g = Math.round(o.g), b = Math.round(o.b);
@@ -6744,8 +6749,10 @@
           }
           var fitting = fittingById(wch.fittingId);
           var o = frame[i];
-          /* engine position is the slewed DMX value — identical to the wire */
-          var yr = trussY - dmxToM(o.dmx, modelById(wch.modelId)); /* true world height for this model's cable length */
+          /* the SIMULATED position — where the motor should physically be,
+             not the target it is being sent. Speed, direction calibration and
+             ramp shape this; the wire is unaffected by all of it. */
+          var yr = trussY - dmxToM(o.sim, modelById(wch.modelId));
           /* over-speed tint is temporally smoothed — the raw per-frame flag
              flickers when a wave hovers right at the speed limit */
           fixtureLimitBlend[i] += (((o.limited && !activeAnim.parked) ? 1 : 0) - fixtureLimitBlend[i]) * 0.12;
