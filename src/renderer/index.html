@@ -3021,7 +3021,7 @@
           shapeRowHtml(key, param, true) +
           '<canvas class="wave-preview" id="bmprev-'+key+'" height="56"></canvas>' +
           '<div class="preset-actions"><button class="flat-btn" data-loadbitmap="'+key+'">Load Image…</button></div>' +
-          '<div class="lohi-row"><div class="field"><label>Low (%)</label><input type="number" min="0" max="100" step="1" data-p="'+key+'" data-f="low" value="'+param.low+'"></div><div class="field"><label>High (%)</label><input type="number" min="0" max="100" step="1" data-p="'+key+'" data-f="high" value="'+param.high+'"></div></div>' +
+          '<div class="lohi-row"><div class="field"><label>Low (%)</label><input type="number" step="1" title="Percent of fixture travel — 100% is the bottom limit. Beyond 0-100 the wave saturates and dwells at the limit instead of turning around." data-p="'+key+'" data-f="low" value="'+param.low+'"></div><div class="field"><label>High (%)</label><input type="number" step="1" title="Percent of fixture travel — 100% is the bottom limit. Beyond 0-100 the wave saturates and dwells at the limit instead of turning around." data-p="'+key+'" data-f="high" value="'+param.high+'"></div></div>' +
           '<div class="lohi-row"><div class="field"><label>Black point</label><input type="number" min="0" max="255" data-p="'+key+'" data-bmf="min" value="'+(bm.min===undefined?0:bm.min)+'"></div><div class="field"><label>White point</label><input type="number" min="0" max="255" data-p="'+key+'" data-bmf="max" value="'+(bm.max===undefined?255:bm.max)+'"></div></div>' +
           '<div class="knob-row">' +
             '<div class="knob-wrap"><div class="knob" data-p="'+key+'" data-f="rate" data-val="'+param.rate+'"><div class="tick" style="transform:rotate('+(param.rate/100*270-135)+'deg)"></div></div><div class="knob-label">Rate</div><div class="knob-val">'+param.rate+'%</div></div>' +
@@ -3038,7 +3038,7 @@
         '<div class="col-label">Waveform</div>' +
         shapeRowHtml(key, param, true) +
         '<canvas class="wave-preview" id="wave-'+key+'" height="56"></canvas>' +
-        '<div class="lohi-row"><div class="field"><label>Low (%)</label><input type="number" min="0" max="100" step="1" data-p="'+key+'" data-f="low" value="'+param.low+'"></div><div class="field"><label>High (%)</label><input type="number" min="0" max="100" step="1" data-p="'+key+'" data-f="high" value="'+param.high+'"></div></div>' +
+        '<div class="lohi-row"><div class="field"><label>Low (%)</label><input type="number" step="1" title="Percent of fixture travel — 100% is the bottom limit. Beyond 0-100 the wave saturates and dwells at the limit instead of turning around." data-p="'+key+'" data-f="low" value="'+param.low+'"></div><div class="field"><label>High (%)</label><input type="number" step="1" title="Percent of fixture travel — 100% is the bottom limit. Beyond 0-100 the wave saturates and dwells at the limit instead of turning around." data-p="'+key+'" data-f="high" value="'+param.high+'"></div></div>' +
         '<div class="knob-row">' +
           '<div class="knob-wrap"><div class="knob" data-p="'+key+'" data-f="rate" data-val="'+param.rate+'"><div class="tick" style="transform:rotate('+(param.rate/100*270-135)+'deg)"></div></div><div class="knob-label">Rate</div><div class="knob-val">'+param.rate+'%</div></div>' +
           '<div class="knob-wrap"><div class="knob" data-p="'+key+'" data-f="phase" data-val="'+param.phase+'"><div class="tick" style="transform:rotate('+(param.phase/360*270-135)+'deg)"></div></div><div class="knob-label">Phase</div><div class="knob-val">'+param.phase+'°</div></div>' +
@@ -3206,11 +3206,6 @@
         var wrap = inp.closest ? inp.closest('[data-p][data-a]') : null;
         if(wrap){ cue[pKey][wrap.getAttribute('data-a')==='x'?'mx':'my'][f] = inp.type==='checkbox' ? inp.checked : (+inp.value); }
         else if(inp.type==='color'){ cue[pKey][f] = inp.value; }
-        else if(f==='low' || f==='high'){
-          /* Low/High are percentages of travel — anything outside 0–100 is
-             just clamped by the patch limits anyway, so hold the real range */
-          cue[pKey][f] = Math.max(0, Math.min(100, +inp.value || 0));
-        }
         else { cue[pKey][f] = +inp.value; }
         renderCueGrid(); renderViewportHud();
         var p = cue[pKey];
