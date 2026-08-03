@@ -1249,9 +1249,7 @@
     <input type="text" id="lgKeyInp" placeholder="BLKM-XXXX-XXXX-XXXX-XXXX" spellcheck="false" autocomplete="off">
     <button id="lgActivateBtn">Activate</button>
     <div class="lg-msg" id="lgMsg"></div>
-    <div class="lg-or">or</div>
-    <button id="lgDemoBtn" class="lg-secondary" title="Explore every feature with all inputs and outputs dead">Continue in Demo Mode</button>
-    <p class="lg-demo-note">Demo sends and receives <b>nothing</b> — no DMX, Art-Net, sACN, OSC or USB, and no device discovery. The rig will not move.</p>
+    <p class="lg-demo-note">Read the Machine ID to your supplier if you need a key issued for this machine.</p>
     <div class="lg-machine">Machine ID <span class="mono" id="lgMachine">—</span></div>
   </div>
 </div>
@@ -7029,7 +7027,10 @@
         demoMode = !!st.demo;
         ioAllowed = st.ioAllowed !== false;
         document.getElementById('demoChip').hidden = !demoMode;
-        document.getElementById('licDemoChk').checked = demoMode;
+        var demoChk = document.getElementById('licDemoChk');
+        demoChk.checked = demoMode;
+        demoChk.disabled = !st.licensed;      /* no demo without a licence */
+        demoChk.title = st.licensed ? '' : 'Activate first — demo is a licensed mode';
         document.getElementById('licMachine').textContent = st.machineId;
         document.getElementById('lgMachine').textContent = st.machineId;
         var el = document.getElementById('licStatus');
@@ -7088,12 +7089,12 @@
       function setDemo(on){
         return window.blk.license.setDemo(on).then(function(st){
           applyStatus(st);
+          if(st.error){ logLine(st.error, 'warn'); return; }
           if(on) logLine('DEMO MODE — every input and output is disabled: no DMX, Art-Net, sACN, OSC or USB leaves this machine','warn');
           else if(st.licensed) logLine('Demo mode off — live output restored','ok');
           else logLine('Demo mode off — activation required before this machine can output','warn');
         });
       }
-      document.getElementById('lgDemoBtn').addEventListener('click', function(){ setDemo(true); });
       document.getElementById('licDemoChk').addEventListener('change', function(){ setDemo(this.checked); });
       document.getElementById('licChip').addEventListener('click', function(){
         document.querySelector('.rail-btn[data-view="settings"]').click();

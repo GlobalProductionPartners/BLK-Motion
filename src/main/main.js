@@ -445,13 +445,19 @@ ipcMain.handle('license:deactivate', async (_event, { serverUrl }) => {
   if (res.ok) { evaluateLicence(); res.status = licenceMode(); } // and close again
   return res;
 });
-/* Demo is a MODE, not just an unlicensed fallback: a licensed operator
-   programming away from the rig (or demonstrating the software) can hold the
-   whole machine silent deliberately. Leaving demo restores live output if the
-   licence allows it, and drops back to the gate if it does not.
+/* Demo is a LICENSED mode: a licensed operator programming away from the rig
+   (or demonstrating the software) can hold the whole machine silent
+   deliberately. It is NOT a way round the gate — an unlicensed machine cannot
+   enter it, so there is no unlicensed tier of the app at all. Refused here in
+   main, not merely hidden in the UI, so the IPC cannot be called directly.
    Session-only on purpose — every launch starts live, so a rig can never be
    dead on a show night because demo was left on days earlier. */
 ipcMain.handle('license:set-demo', (_event, on) => {
+  if (on && !license.status().licensed) {
+    const st = licenceMode();
+    st.error = 'Demo mode requires a licence';
+    return st;
+  }
   demoMode = !!on;
   if (demoMode) { ioAllowed = false; stopProtocols(); }
   else { evaluateLicence(); }
