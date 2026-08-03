@@ -1218,18 +1218,24 @@
 
 <div class="modal-backdrop" id="calibrationModal" hidden>
   <div class="modal" style="max-width:520px;">
-    <div class="modal-title">Motor Calibration</div>
+    <div class="modal-title">Motor Calibration <span style="font-size:10px;color:var(--text-3);font-weight:400;letter-spacing:.04em;">SPACE advances</span></div>
     <p class="modal-text" id="calibrationFixtureInfo">Fixture —</p>
     <div class="set-rows compact">
       <div class="set-row"><label>Current speed</label><span class="unit" id="calibrationCurrentSpeed">0 cm/s</span></div>
       <div class="set-row"><label>Travel span</label><span class="unit" id="calibrationTravelSpan">0 DMX</span></div>
       <div class="set-row"><label>Expected time</label><span class="unit" id="calibrationExpectedTime">0.0 s</span></div>
       <div class="set-row"><label>Measured time</label><span class="unit" id="calibrationMeasuredTime">—</span></div>
-      <div class="set-row"><label>Calibration</label>
-        <button class="flat-btn" id="calTrimDown" title="Slower by 1%">−</button>
-        <input type="number" min="20" max="300" step="1" id="calTrimInp" style="width:64px;" title="Percent of rated speed this motor really achieves. Run the timed test for a starting figure, then trim until the rig and the Monitor stay together.">
-        <button class="flat-btn" id="calTrimUp" title="Faster by 1%">+</button>
+      <div class="set-row"><label>Down cal ↓</label>
+        <button class="flat-btn cal-nudge" data-cal="down" data-d="-1" title="Slower by 1%">−</button>
+        <input type="number" min="20" max="300" step="1" id="calTrimInp" style="width:64px;" title="Percent of rated speed this motor really achieves travelling DOWN. Run the timed test for a starting figure, then trim until the rig and the Monitor stay together.">
+        <button class="flat-btn cal-nudge" data-cal="down" data-d="1" title="Faster by 1%">+</button>
         <span class="unit" id="calTrimEff">—</span>
+      </div>
+      <div class="set-row"><label>Up cal ↑</label>
+        <button class="flat-btn cal-nudge" data-cal="up" data-d="-1" title="Slower by 1%">−</button>
+        <input type="number" min="20" max="300" step="1" id="calTrimUpInp" style="width:64px;" title="Percent of rated speed this motor really achieves travelling UP — usually lower than down, since the motor is lifting the load.">
+        <button class="flat-btn cal-nudge" data-cal="up" data-d="1" title="Faster by 1%">+</button>
+        <span class="unit" id="calTrimUpEff">—</span>
       </div>
     </div>
     <div class="modal-btns">
@@ -3410,7 +3416,8 @@
           '<div class="lib-field"><label>Max speed</label><div class="lib-inp"><input type="number" data-model-field="maxSpeedCmS" data-idx="'+idx+'" value="'+m.maxSpeedCmS+'"><span>cm/s</span></div></div>' +
           '<div class="lib-field"><label>Max load</label><div class="lib-inp"><input type="number" step="0.1" data-model-field="maxLoadKg" data-idx="'+idx+'" value="'+m.maxLoadKg+'"><span>kg</span></div></div>' +
           '<div class="lib-field"><label>Lift height</label><div class="lib-inp"><input type="number" step="0.1" min="0.5" max="30" data-model-field="liftM" data-idx="'+idx+'" value="'+modelLiftM(m)+'" title="Real cable length for DMX 0→255 — RISE variants: 3.3 or 6 m. Drives every DMX↔metres conversion."><span>m</span></div></div>' +
-          '<div class="lib-field"><label>Speed cal</label><div class="lib-inp"><input type="number" min="20" max="300" data-model-field="speedCalPct" data-idx="'+idx+'" value="'+(m.speedCalPct||100)+'" title="Real-world speed vs rated, measured via Calibrate Motor in Patch — scales the visualiser for every fixture of this model"><span>%</span></div></div>' +
+          '<div class="lib-field"><label>Speed cal ↓</label><div class="lib-inp"><input type="number" min="20" max="300" data-model-field="speedCalPct" data-idx="'+idx+'" value="'+(m.speedCalPct||100)+'" title="Real-world DOWN speed vs rated, measured via Calibrate Motor in Patch"><span>%</span></div></div>' +
+          '<div class="lib-field"><label>Speed cal ↑</label><div class="lib-inp"><input type="number" min="20" max="300" data-model-field="speedCalUpPct" data-idx="'+idx+'" value="'+(m.speedCalUpPct||m.speedCalPct||100)+'" title="Real-world UP speed vs rated — a winch lifting its load is usually slower than it is dropping"><span>%</span></div></div>' +
           '<div class="lib-field"><label>DMX mode</label><select data-model-field="dmxMode" data-idx="'+idx+'" title="Must match the DMX Mode set on the fixture LCD menu">' +
             [['5','5CH — Motor·Speed·RGB'],['6','6CH — +Fine16'],['9','9CH — +Dimmer·Strobe'],['10','10CH — full']].map(function(md){
               return '<option value="'+md[0]+'"'+(((m.dmxMode||'6')===md[0])?' selected':'')+'>'+md[1]+'</option>';
@@ -3425,7 +3432,7 @@
         var idx = +inp.getAttribute('data-idx'), field = inp.getAttribute('data-model-field');
         pushUndo('edit model', 'library');
         WINCH_MODELS[idx][field] = (field==='name'||field==='dmxMode') ? inp.value : Math.max(field==='maxLoadKg'?0.1:1, +inp.value);
-        if(field==='speedCalPct') WINCH_MODELS[idx][field] = Math.max(20, Math.min(300, Math.round(+inp.value)||100));
+        if(field==='speedCalPct' || field==='speedCalUpPct') WINCH_MODELS[idx][field] = Math.max(20, Math.min(300, Math.round(+inp.value)||100));
         if(field==='liftM') WINCH_MODELS[idx][field] = Math.max(0.5, Math.min(30, +inp.value||6));
         logLine('Model '+WINCH_MODELS[idx].name+' — '+field+' updated'+(field==='dmxMode'?' ('+modelFootprint(WINCH_MODELS[idx])+'-channel footprint — re-patch addresses if spacing changed)':''));
         if(field==='dmxMode') renderModelsTable();
@@ -5533,9 +5540,17 @@
   var calibrationState = null;
   var snapRecallIds = {}; /* one-shot: these fixtures' commands snap (no slew) on the next engine tick */
   function calSpanCm(w){ return (Math.abs(w.bottomLimit-w.topLimit)/255)*(modelLiftM(modelById(w.modelId))*100); }
-  /* per-fixture calibration overrides the model's; either defaults to 100% */
+  /* Per-fixture calibration overrides the model's; either defaults to 100%.
+     A winch is rarely symmetric — gravity helps it down and fights it coming
+     up — so DOWN and UP are measured and stored separately. An absent UP
+     figure falls back to the DOWN one, which is how older shows behave. */
   function calPctOf(w){ return (w.speedCalPct || modelById(w.modelId).speedCalPct || 100); }
-  function calEffSpeed(w){ return w.maxSpeed * (calPctOf(w)/100); }
+  function calUpPctOf(w){
+    var m = modelById(w.modelId);
+    return (w.speedCalUpPct || m.speedCalUpPct || w.speedCalPct || m.speedCalPct || 100);
+  }
+  function calPctDir(w, goingUp){ return goingUp ? calUpPctOf(w) : calPctOf(w); }
+  function calEffSpeed(w, goingUp){ return w.maxSpeed * (calPctDir(w, !!goingUp)/100); }
   function updateCalModal(){
     if(!calibrationState) return;
     var w = winchById(calibrationState.id); if(!w) return;
@@ -5546,16 +5561,28 @@
     document.getElementById('calibrationExpectedTime').textContent = (calSpanCm(w)/Math.max(1,calEffSpeed(w))).toFixed(1)+' s at current calibration';
     var btn = document.getElementById('calibrationRunBtn');
     var ph = calibrationState.phase;
-    btn.textContent = ph===null ? 'Send to Top' : ph==='homing' ? 'Start Timed Run' : ph==='running' ? 'Mark Real Arrival' : 'Run Again';
-    /* the trim field always holds the value that Apply will store: the fresh
-       measurement if there is one, otherwise what this fixture uses today */
+    btn.textContent =
+      ph===null        ? 'Send to Top'          :
+      ph==='homing'    ? 'Time the DOWN run'    :
+      ph==='runDown'   ? 'Mark arrival (down)'  :
+      ph==='gotDown'   ? 'Time the UP run'      :
+      ph==='runUp'     ? 'Mark arrival (up)'    : 'Run again';
+    /* each field holds what Apply will store: a fresh measurement if there is
+       one, otherwise what this fixture uses today */
     var trim = document.getElementById('calTrimInp');
     if(document.activeElement !== trim){
       trim.value = calibrationState.pct !== undefined ? calibrationState.pct : calPctOf(w);
     }
-    document.getElementById('calTrimEff').textContent =
-      '% of rated → ' + (w.maxSpeed*((+trim.value||100)/100)).toFixed(1) + ' cm/s · ' +
-      (calSpanCm(w)/Math.max(1, w.maxSpeed*((+trim.value||100)/100))).toFixed(1) + ' s end to end';
+    var trimUp = document.getElementById('calTrimUpInp');
+    if(document.activeElement !== trimUp){
+      trimUp.value = calibrationState.pctUp !== undefined ? calibrationState.pctUp : calUpPctOf(w);
+    }
+    function eff(v){
+      var cms = w.maxSpeed*((+v||100)/100);
+      return '% → ' + cms.toFixed(1) + ' cm/s · ' + (calSpanCm(w)/Math.max(1,cms)).toFixed(1) + ' s';
+    }
+    document.getElementById('calTrimEff').textContent = eff(trim.value);
+    document.getElementById('calTrimUpEff').textContent = eff(trimUp.value);
   }
   function openCalibrationModal(){
     var ids = Object.keys(selectedPatchIds).map(Number);
@@ -5591,6 +5618,24 @@
       document.getElementById('calibrationMeasuredTime').textContent = 'sent to top — wait for the REAL unit to stop, then Start Timed Run';
       logLine('Calibration: '+w.name+' snapped to its top limit at full speed');
       updateCalModal();
+    } else if(calibrationState.phase==='gotDown'){
+      /* step 3: back UP to the top, timed — a winch lifting its load is
+         usually slower than it is dropping, and the visualiser needs both */
+      w.testHeight = top;
+      calibrationState.t0 = performance.now();
+      calibrationState.phase = 'runUp';
+      logLine('Calibration: UP run started — mark arrival when the physical unit stops','warn');
+      updateCalModal();
+    } else if(calibrationState.phase==='runUp'){
+      var measuredU = (performance.now()-calibrationState.t0)/1000;
+      var realU = calSpanCm(w)/Math.max(0.1, measuredU);
+      var ratedU = Math.max(1, modelById(w.modelId).maxSpeedCmS || 75);
+      calibrationState.pctUp = Math.max(20, Math.min(300, Math.round(realU / ratedU * 100)));
+      calibrationState.phase = 'done';
+      document.getElementById('calibrationMeasuredTime').textContent =
+        'up ' + measuredU.toFixed(2)+' s → '+realU.toFixed(1)+' cm/s → '+calibrationState.pctUp+'% — trim if needed, then apply';
+      logLine('Calibration UP: '+realU.toFixed(1)+' cm/s of '+ratedU+' rated ('+calibrationState.pctUp+'%)');
+      updateCalModal();
     } else if(calibrationState.phase==='homing'){
       /* step 2: snap to the bottom limit and start the clock — position
          jumps in one frame, speed channel at rated max, so the measured
@@ -5598,10 +5643,10 @@
       var bottom = Math.max(w.topLimit, w.bottomLimit);
       w.testHeight = bottom;
       calibrationState.t0 = performance.now();
-      calibrationState.phase = 'running';
-      logLine('Calibration: timed run started — snap to bottom at full speed; Mark Real Arrival when the physical unit stops','warn');
+      calibrationState.phase = 'runDown';
+      logLine('Calibration: DOWN run started — mark arrival when the physical unit stops','warn');
       updateCalModal();
-    } else if(calibrationState.phase==='running'){
+    } else if(calibrationState.phase==='runDown'){
       /* the operator marks the REAL fixture's arrival — measure only;
          choose where the correction lands with the apply buttons */
       var measured = (performance.now()-calibrationState.t0)/1000;
@@ -5614,10 +5659,11 @@
       var ratedCmS = Math.max(1, modelById(w.modelId).maxSpeedCmS || 75);
       var pct = Math.max(20, Math.min(300, Math.round(realCmS / ratedCmS * 100)));
       calibrationState.resultPct = pct;
-      calibrationState.pct = pct;      /* seeds the trim field */
-      calibrationState.phase = 'measured';
-      document.getElementById('calibrationMeasuredTime').textContent = measured.toFixed(2)+' s → real '+realCmS.toFixed(1)+' cm/s of '+ratedCmS+' rated → '+pct+'% — choose where to apply';
-      logLine('Calibration measured: '+realCmS.toFixed(1)+' cm/s against '+ratedCmS+' cm/s rated ('+pct+'%) — apply to the model or to selected fixtures');
+      calibrationState.pct = pct;      /* seeds the down trim field */
+      calibrationState.phase = 'gotDown';
+      document.getElementById('calibrationMeasuredTime').textContent =
+        'down ' + measured.toFixed(2)+' s → '+realCmS.toFixed(1)+' cm/s of '+ratedCmS+' rated → '+pct+'% — now time the UP run';
+      logLine('Calibration DOWN: '+realCmS.toFixed(1)+' cm/s of '+ratedCmS+' rated ('+pct+'%) — now run it upward');
       updateCalModal();
     }
   });
@@ -5626,47 +5672,66 @@
      A timed run gets you close; stopwatch error and motor ramp-up mean the last
      few percent are easier to find by watching the rig against the visualiser.
      Nothing is stored until Apply, so trimming is always safe. */
-  function calTrimValue(){
-    return Math.max(20, Math.min(300, Math.round(+document.getElementById('calTrimInp').value) || 100));
+  function calTrimValue(dir){
+    var id = dir==='up' ? 'calTrimUpInp' : 'calTrimInp';
+    return Math.max(20, Math.min(300, Math.round(+document.getElementById(id).value) || 100));
   }
-  function nudgeTrim(delta){
-    if(!calibrationState) return;
-    calibrationState.pct = Math.max(20, Math.min(300, calTrimValue() + delta));
-    document.getElementById('calTrimInp').value = calibrationState.pct;
-    updateCalModal();
-  }
-  document.getElementById('calTrimUp').addEventListener('click', function(){ nudgeTrim(1); });
-  document.getElementById('calTrimDown').addEventListener('click', function(){ nudgeTrim(-1); });
+  Array.prototype.forEach.call(document.querySelectorAll('.cal-nudge'), function(b){
+    b.addEventListener('click', function(){
+      if(!calibrationState) return;
+      var dir = b.getAttribute('data-cal'), d = +b.getAttribute('data-d');
+      var v = Math.max(20, Math.min(300, calTrimValue(dir) + d));
+      if(dir==='up'){ calibrationState.pctUp = v; document.getElementById('calTrimUpInp').value = v; }
+      else { calibrationState.pct = v; document.getElementById('calTrimInp').value = v; }
+      updateCalModal();
+    });
+  });
   document.getElementById('calTrimInp').addEventListener('input', function(){
-    if(calibrationState) calibrationState.pct = calTrimValue();
+    if(calibrationState) calibrationState.pct = calTrimValue('down');
     updateCalModal();
   });
+  document.getElementById('calTrimUpInp').addEventListener('input', function(){
+    if(calibrationState) calibrationState.pctUp = calTrimValue('up');
+    updateCalModal();
+  });
+  /* SPACE advances the run — you are watching the rig, not the screen, and
+     hunting for a button costs the accuracy the stopwatch is trying to get.
+     Only while the modal is open, and never while typing in a trim field. */
+  document.addEventListener('keydown', function(e){
+    if(document.getElementById('calibrationModal').hidden) return;
+    if(e.code !== 'Space' || e.ctrlKey || e.metaKey || e.altKey) return;
+    var el = document.activeElement;
+    if(el && (el.tagName==='INPUT' || el.tagName==='TEXTAREA')) return;
+    e.preventDefault();
+    e.stopImmediatePropagation();   /* must not reach the timeline transport */
+    document.getElementById('calibrationRunBtn').click();
+  }, true);
   document.getElementById('calApplyModelBtn').addEventListener('click', function(){
     if(!calibrationState) return;
     var w = winchById(calibrationState.id); if(!w) return;
-    var pct = calTrimValue();
+    var pct = calTrimValue('down'), pctUp = calTrimValue('up');
     pushUndo('calibration');
     var mm = modelById(w.modelId);
-    mm.speedCalPct = pct;
+    mm.speedCalPct = pct; mm.speedCalUpPct = pctUp;
     var cnt = 0;
-    winchData.forEach(function(x){ if(x.modelId===mm.id){ delete x.speedCalPct; cnt++; } });
-    logLine('Calibration '+pct+'% applied to model '+mm.name+' — global for '+cnt+' fixture'+(cnt===1?'':'s'),'ok');
+    winchData.forEach(function(x){ if(x.modelId===mm.id){ delete x.speedCalPct; delete x.speedCalUpPct; cnt++; } });
+    logLine('Calibration ↓'+pct+'% ↑'+pctUp+'% applied to model '+mm.name+' — global for '+cnt+' fixture'+(cnt===1?'':'s'),'ok');
     renderModelsTable(); renderPatchRows(); updateCalModal();
   });
   document.getElementById('calibrationApplySelBtn').addEventListener('click', function(){
     if(!calibrationState) return;
-    var pct = calTrimValue();     /* measured or hand-trimmed — whatever is showing */
+    var pct = calTrimValue('down'), pctUp = calTrimValue('up');  /* measured or hand-trimmed */
     var ids = Object.keys(selectedPatchIds).map(Number);
     if(!ids.length) ids = [calibrationState.id];
     pushUndo('calibration');
     var applied = 0;
-    ids.forEach(function(id){ var x = winchById(id); if(x){ x.speedCalPct = pct; applied++; } });
-    logLine('Calibration '+pct+'% applied to '+applied+' selected fixture'+(applied===1?'':'s')+' (overrides the model value)','ok');
+    ids.forEach(function(id){ var x = winchById(id); if(x){ x.speedCalPct = pct; x.speedCalUpPct = pctUp; applied++; } });
+    logLine('Calibration ↓'+pct+'% ↑'+pctUp+'% applied to '+applied+' selected fixture'+(applied===1?'':'s')+' (overrides the model value)','ok');
     renderPatchRows(); updateCalModal();
   });
   /* live-updates the running timer during the timed run */
   setInterval(function(){
-    if(!calibrationState || calibrationState.phase!=='running') return;
+    if(!calibrationState || (calibrationState.phase!=='runDown' && calibrationState.phase!=='runUp')) return;
     document.getElementById('calibrationMeasuredTime').textContent = ((performance.now()-calibrationState.t0)/1000).toFixed(1)+' s — running… mark when the real unit stops';
   }, 200);
 
@@ -6137,7 +6202,10 @@
       /* slew: chase the demand at no more than the winch's effective real
          speed: operator cap × per-model calibration × test speed scale */
       o.limited = false;
-      var effCmS = w.maxSpeed * (((w.speedCalPct || wm.speedCalPct)||100)/100) * o.speedScale;
+      /* which way is this move going? Rising DMX = paying out = travelling
+         DOWN. Each direction slews at its own measured speed. */
+      var goingUp = (target - engState.cur[i]) < 0;
+      var effCmS = w.maxSpeed * (calPctDir(w, goingUp)/100) * o.speedScale;
       /* calibration SNAPS the command: the position byte jumps to the limit
          in one frame so the physical motor free-runs at its own top speed —
          a ramped command would only ever measure our current assumption */
