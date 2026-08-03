@@ -1231,6 +1231,12 @@
         <button class="flat-btn cal-nudge" data-cal="down" data-d="1" title="Faster by 1%">+</button>
         <span class="unit" id="calTrimEff">—</span>
       </div>
+      <div class="set-row"><label>Ramp</label>
+        <button class="flat-btn cal-nudge" data-cal="ramp" data-d="-1" title="Shorter ramp">−</button>
+        <input type="number" min="0" max="5" step="0.05" id="calRampInp" style="width:64px;" title="Seconds to reach full speed and to brake. If the Monitor still arrives before the rig, raise this.">
+        <button class="flat-btn cal-nudge" data-cal="ramp" data-d="1" title="Longer ramp">+</button>
+        <span class="unit">s spool-up / braking</span>
+      </div>
       <div class="set-row"><label>Up cal ↑</label>
         <button class="flat-btn cal-nudge" data-cal="up" data-d="-1" title="Slower by 1%">−</button>
         <input type="number" min="20" max="300" step="1" id="calTrimUpInp" style="width:64px;" title="Percent of rated speed this motor really achieves travelling UP — usually lower than down, since the motor is lifting the load.">
@@ -3416,6 +3422,7 @@
           '<div class="lib-field"><label>Max speed</label><div class="lib-inp"><input type="number" data-model-field="maxSpeedCmS" data-idx="'+idx+'" value="'+m.maxSpeedCmS+'"><span>cm/s</span></div></div>' +
           '<div class="lib-field"><label>Max load</label><div class="lib-inp"><input type="number" step="0.1" data-model-field="maxLoadKg" data-idx="'+idx+'" value="'+m.maxLoadKg+'"><span>kg</span></div></div>' +
           '<div class="lib-field"><label>Lift height</label><div class="lib-inp"><input type="number" step="0.1" min="0.5" max="30" data-model-field="liftM" data-idx="'+idx+'" value="'+modelLiftM(m)+'" title="Real cable length for DMX 0→255 — RISE variants: 3.3 or 6 m. Drives every DMX↔metres conversion."><span>m</span></div></div>' +
+          '<div class="lib-field"><label>Ramp</label><div class="lib-inp"><input type="number" min="0" max="5" step="0.05" data-model-field="rampS" data-idx="'+idx+'" value="'+modelRampS(m)+'" title="Seconds this winch takes to reach full speed, and to brake to a stop. Raise it until the Monitor stops arriving before the rig does. 0 = instant."><span>s</span></div></div>' +
           '<div class="lib-field"><label>Speed cal ↓</label><div class="lib-inp"><input type="number" min="20" max="300" data-model-field="speedCalPct" data-idx="'+idx+'" value="'+(m.speedCalPct||100)+'" title="Real-world DOWN speed vs rated, measured via Calibrate Motor in Patch"><span>%</span></div></div>' +
           '<div class="lib-field"><label>Speed cal ↑</label><div class="lib-inp"><input type="number" min="20" max="300" data-model-field="speedCalUpPct" data-idx="'+idx+'" value="'+(m.speedCalUpPct||m.speedCalPct||100)+'" title="Real-world UP speed vs rated — a winch lifting its load is usually slower than it is dropping"><span>%</span></div></div>' +
           '<div class="lib-field"><label>DMX mode</label><select data-model-field="dmxMode" data-idx="'+idx+'" title="Must match the DMX Mode set on the fixture LCD menu">' +
@@ -3433,6 +3440,7 @@
         pushUndo('edit model', 'library');
         WINCH_MODELS[idx][field] = (field==='name'||field==='dmxMode') ? inp.value : Math.max(field==='maxLoadKg'?0.1:1, +inp.value);
         if(field==='speedCalPct' || field==='speedCalUpPct') WINCH_MODELS[idx][field] = Math.max(20, Math.min(300, Math.round(+inp.value)||100));
+        else if(field==='rampS') WINCH_MODELS[idx][field] = Math.max(0, Math.min(5, +inp.value||0));
         if(field==='liftM') WINCH_MODELS[idx][field] = Math.max(0.5, Math.min(30, +inp.value||6));
         logLine('Model '+WINCH_MODELS[idx].name+' — '+field+' updated'+(field==='dmxMode'?' ('+modelFootprint(WINCH_MODELS[idx])+'-channel footprint — re-patch addresses if spacing changed)':''));
         if(field==='dmxMode') renderModelsTable();
@@ -5544,6 +5552,12 @@
      A winch is rarely symmetric — gravity helps it down and fights it coming
      up — so DOWN and UP are measured and stored separately. An absent UP
      figure falls back to the DOWN one, which is how older shows behave. */
+  /* seconds from rest to full speed (and back) — real motion control ramps.
+     0 restores the old instant-speed behaviour. */
+  function modelRampS(m){
+    var v = (m && m.rampS !== undefined) ? +m.rampS : 0.4;
+    return Math.max(0, Math.min(5, isFinite(v) ? v : 0.4));
+  }
   function calPctOf(w){ return (w.speedCalPct || modelById(w.modelId).speedCalPct || 100); }
   function calUpPctOf(w){
     var m = modelById(w.modelId);
@@ -5586,6 +5600,8 @@
     if(document.activeElement !== trimUp){
       trimUp.value = calibrationState.pctUp !== undefined ? calibrationState.pctUp : calUpPctOf(w);
     }
+    var rampEl = document.getElementById('calRampInp');
+    if(document.activeElement !== rampEl) rampEl.value = modelRampS(m);
     function eff(v){
       var cms = w.maxSpeed*((+v||100)/100);
       return '% → ' + cms.toFixed(1) + ' cm/s · ' + (calSpanCm(w)/Math.max(1,cms)).toFixed(1) + ' s';
@@ -5666,6 +5682,10 @@
          fixture was capped below its rating — the visualiser then ran at a
          different speed from the hardware. */
       var ratedCmS = Math.max(1, modelById(w.modelId).maxSpeedCmS || 75);
+      /* the timed run includes the motor's own spool-up and braking, so the
+         raw average understates the cruise speed: T = ramp + span/v */
+      var rampCal = modelRampS(modelById(w.modelId));
+      realCmS = calSpanCm(w)/Math.max(0.1, measured - rampCal);
       var pct = Math.max(20, Math.min(300, Math.round(realCmS / ratedCmS * 100)));
       calibrationState.resultPct = pct;
       calibrationState.pct = pct;      /* seeds the down trim field */
@@ -5689,6 +5709,15 @@
     b.addEventListener('click', function(){
       if(!calibrationState) return;
       var dir = b.getAttribute('data-cal'), d = +b.getAttribute('data-d');
+      if(dir==='ramp'){
+        /* the ramp lives on the model and takes effect immediately, so you can
+           watch the rig and the Monitor converge as you nudge it */
+        var w2 = winchById(calibrationState.id); if(!w2) return;
+        var mm2 = modelById(w2.modelId);
+        mm2.rampS = Math.max(0, Math.min(5, Math.round((modelRampS(mm2) + d*0.05)*100)/100));
+        renderModelsTable(); updateCalModal();
+        return;
+      }
       var v = Math.max(20, Math.min(300, calTrimValue(dir) + d));
       if(dir==='up'){ calibrationState.pctUp = v; document.getElementById('calTrimUpInp').value = v; }
       else { calibrationState.pct = v; document.getElementById('calTrimInp').value = v; }
@@ -5702,6 +5731,12 @@
   document.getElementById('calTrimUpInp').addEventListener('input', function(){
     if(calibrationState) calibrationState.pctUp = calTrimValue('up');
     updateCalModal();
+  });
+  document.getElementById('calRampInp').addEventListener('input', function(){
+    if(!calibrationState) return;
+    var w3 = winchById(calibrationState.id); if(!w3) return;
+    modelById(w3.modelId).rampS = Math.max(0, Math.min(5, +this.value||0));
+    renderModelsTable();
   });
   /* SPACE advances the run — you are watching the rig, not the screen, and
      hunting for a button costs the accuracy the stopwatch is trying to get.
@@ -5984,6 +6019,7 @@
         for(var pk=0; pk<engState.ids.length; pk++){ prevPos[engState.ids[pk]] = engState.cur[pk]; }
       }
       engState.cur = new Float32Array(n);
+      engState.vel = new Float32Array(n);   /* signed DMX/s — winches ramp */
       engState.ids = new Array(n);
       engState.out = new Array(n);
       for(var k=0;k<n;k++){
@@ -6223,14 +6259,29 @@
         if(snapRecallIds[w.id]) delete snapRecallIds[w.id];
       }
       else {
-        var maxStep = (effCmS/100)*(255/liftM)*dt; /* cm/s → DMX units/s over THIS model's travel */
+        /* A winch cannot change speed instantly: it spools up, cruises, and
+           brakes to a stop. Commanding a step change made the command arrive
+           before the hardware possibly could — and a moving cue reverses
+           constantly, so the real rig paid a ramp on every turn that the
+           visualiser never did, falling further behind the longer it ran.
+           This integrates a proper trapezoidal profile instead. */
+        var vMax = (effCmS/100)*(255/liftM);            /* DMX/s */
+        var rampS = modelRampS(wm);
+        var accel = rampS > 0.01 ? vMax/rampS : 1e9;    /* DMX/s^2 */
         var dpos = target - engState.cur[i];
-        if(Math.abs(dpos) > maxStep){
-          engState.cur[i] += (dpos>0?maxStep:-maxStep);
-          /* flag only meaningful saturation, not frame-time jitter at the limit */
-          if(Math.abs(dpos) > maxStep*1.2) o.limited = true;
+        var v = engState.vel[i];
+        /* brake once the remaining distance is all we can stop within */
+        var stopDist = (v*v)/(2*accel);
+        var want = Math.abs(dpos) <= stopDist ? 0 : (dpos > 0 ? vMax : -vMax);
+        if(v < want) v = Math.min(want, v + accel*dt);
+        else if(v > want) v = Math.max(want, v - accel*dt);
+        var next = engState.cur[i] + v*dt;
+        if((dpos > 0 && next >= target) || (dpos < 0 && next <= target) || Math.abs(dpos) < 1e-4){
+          next = target; v = 0;
         }
-        else { engState.cur[i] = target; }
+        engState.cur[i] = next;
+        engState.vel[i] = v;
+        if(Math.abs(dpos) > Math.abs(v*dt)*1.2) o.limited = true;
       }
       o.dmx = engState.cur[i];
     }
@@ -6246,7 +6297,11 @@
     var pos8 = Math.floor(posF);
     var posFine = Math.round((posF-pos8)*255);
     /* hardware speed channel is inverted: 0 = fast, 255 = slow */
-    var cmdCmS = w.maxSpeed * (o.speedScale||1);
+    /* The app owns the motion profile, so the fixture is asked for HEADROOM
+       above the commanded slew — told to run at exactly the rate the command
+       moves, it can never make up the ground it loses accelerating, and
+       arrives late on every move. */
+    var cmdCmS = w.maxSpeed * (o.speedScale||1) * 1.5;
     var speedByte = Math.round((1 - Math.max(0, Math.min(1, cmdCmS/(m.maxSpeedCmS||75))))*255);
     var dimByte = Math.round(Math.max(0, Math.min(1, o.dim))*255);
     var r = Math.round(o.r), g = Math.round(o.g), b = Math.round(o.b);
