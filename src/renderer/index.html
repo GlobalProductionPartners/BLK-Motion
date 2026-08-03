@@ -5585,11 +5585,17 @@
          choose where the correction lands with the apply buttons */
       var measured = (performance.now()-calibrationState.t0)/1000;
       var realCmS = calSpanCm(w)/Math.max(0.1, measured);
-      var pct = Math.max(20, Math.min(300, Math.round(realCmS / Math.max(1, w.maxSpeed) * 100)));
+      /* The timed run commands the MODEL'S RATED speed (speedScale cancels the
+         operator's cap), so the correction is real ÷ RATED. Measuring against
+         w.maxSpeed instead made the figure wrong by exactly the amount a
+         fixture was capped below its rating — the visualiser then ran at a
+         different speed from the hardware. */
+      var ratedCmS = Math.max(1, modelById(w.modelId).maxSpeedCmS || 75);
+      var pct = Math.max(20, Math.min(300, Math.round(realCmS / ratedCmS * 100)));
       calibrationState.resultPct = pct;
       calibrationState.phase = 'measured';
-      document.getElementById('calibrationMeasuredTime').textContent = measured.toFixed(2)+' s → real '+realCmS.toFixed(1)+' cm/s → '+pct+'% — choose where to apply';
-      logLine('Calibration measured: '+realCmS.toFixed(1)+' cm/s ('+pct+'%) — apply to the model or to selected fixtures');
+      document.getElementById('calibrationMeasuredTime').textContent = measured.toFixed(2)+' s → real '+realCmS.toFixed(1)+' cm/s of '+ratedCmS+' rated → '+pct+'% — choose where to apply';
+      logLine('Calibration measured: '+realCmS.toFixed(1)+' cm/s against '+ratedCmS+' cm/s rated ('+pct+'%) — apply to the model or to selected fixtures');
       updateCalModal();
     } else if(calibrationState.phase==='measured'){
       /* apply to the MODEL — global for every fixture of this type; any
