@@ -88,7 +88,7 @@ activate it; deactivating the demo key first frees its seat.
 > `wrangler d1 execute blk-motion-license --remote --file=migrate-add-kind.sql`.
 > Existing keys keep full output.
 
-
+### Full keys (drive hardware)
 
 ```sh
 curl -X POST https://<worker-url>/admin/keys \
@@ -115,9 +115,16 @@ curl -X POST https://<worker-url>/deactivate \
 ## In the app
 
 - **Settings → License**: shows status, machine ID (customers read this to you
-  for support), key entry + Activate, and Deactivate (frees the seat online).
-- Unactivated **packaged** builds show a blocking activation screen at launch.
-  Dev runs (`npm start`) are never blocked.
+  for support), key entry + Activate, Deactivate (frees the seat online), and
+  a **Demo mode** toggle for licensed machines that need to be silent —
+  programming away from the rig, or demonstrating the software. It is
+  session-only: every launch starts live, so a rig can never sit dead because
+  demo was left on days earlier.
+- An unlicensed machine is blocked at launch with no way past: there is no
+  unlicensed tier, and demo cannot be entered without a licence.
+- Enforcement applies to **every** run, including `npm start`. Use
+  `npm run start:dev` (BLK_LICENSE_DEV=1) to work on the app without
+  activating; the flag is ignored in packaged builds.
 
 ## Local testing without Cloudflare
 
