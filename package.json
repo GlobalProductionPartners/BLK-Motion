@@ -1,7 +1,7 @@
 {
   "name": "blk-motion",
   "version": "0.1.0",
-  "description": "BLK Motion — hardware-agnostic control platform for kinetic light and winch shows",
+  "description": "BLK Motion \u2014 hardware-agnostic control platform for kinetic light and winch shows",
   "main": "src/main/main.js",
   "author": "Global Production Partners / BLK",
   "license": "UNLICENSED",
@@ -10,7 +10,8 @@
     "start": "electron .",
     "dist:mac": "electron-builder --mac",
     "dist:win": "electron-builder --win",
-    "dist": "electron-builder -mw"
+    "dist": "electron-builder -mw",
+    "start:dev": "BLK_LICENSE_DEV=1 electron ."
   },
   "devDependencies": {
     "electron": "^32.0.0",

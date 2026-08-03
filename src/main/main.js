@@ -33,8 +33,12 @@ let demoMode = false;    // user chose to explore with all I/O dead
 let netCfg = null;       // last network config, applied once I/O is permitted
 
 function licenceEnforced() {
-  // packaged builds always enforce; BLK_LICENSE_ENFORCE=1 exercises it in dev
-  return app.isPackaged || process.env.BLK_LICENSE_ENFORCE === '1';
+  // Enforced everywhere, including `npm start` — the gate is the product's
+  // real behaviour and should not be something you only meet after packaging.
+  // `npm run start:dev` (BLK_LICENSE_DEV=1) bypasses it while working on the
+  // app itself; it has no effect in a packaged build.
+  if (!app.isPackaged && process.env.BLK_LICENSE_DEV === '1') return false;
+  return true;
 }
 
 function startProtocols() {
