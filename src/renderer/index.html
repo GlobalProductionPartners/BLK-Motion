@@ -1225,10 +1225,17 @@
       <div class="set-row"><label>Travel span</label><span class="unit" id="calibrationTravelSpan">0 DMX</span></div>
       <div class="set-row"><label>Expected time</label><span class="unit" id="calibrationExpectedTime">0.0 s</span></div>
       <div class="set-row"><label>Measured time</label><span class="unit" id="calibrationMeasuredTime">—</span></div>
+      <div class="set-row"><label>Calibration</label>
+        <button class="flat-btn" id="calTrimDown" title="Slower by 1%">−</button>
+        <input type="number" min="20" max="300" step="1" id="calTrimInp" style="width:64px;" title="Percent of rated speed this motor really achieves. Run the timed test for a starting figure, then trim until the rig and the Monitor stay together.">
+        <button class="flat-btn" id="calTrimUp" title="Faster by 1%">+</button>
+        <span class="unit" id="calTrimEff">—</span>
+      </div>
     </div>
     <div class="modal-btns">
       <button class="flat-btn go" id="calibrationRunBtn">Run Test</button>
-      <button class="flat-btn" id="calibrationApplySelBtn" style="display:none;" title="Store the measured speed on the ticked fixtures only (or just this one) — overrides the model value">Apply to Selected</button>
+      <button class="flat-btn" id="calApplyModelBtn" title="Store this calibration on the model — every fixture of this type">Apply to Model</button>
+      <button class="flat-btn" id="calibrationApplySelBtn" title="Store this calibration on the ticked fixtures only (or just this one) — overrides the model value">Apply to Selected</button>
       <button class="flat-btn" id="calibrationCloseBtn">Close</button>
     </div>
   </div>
@@ -2818,8 +2825,14 @@
         btn.classList.remove('arming');
         allStop(false);
         if(tlPlaying) tlStopFn();
+        /* Home means HOME: every axis to its top limit and dark, ignoring
+           start heights — that is the state you want before touching the rig.
+           Held there (like a stop-hold) until a cue drives it again. */
         stopHold = {};
-        logLine('HOME ALL — axes recalling to their start heights at rated speed','warn');
+        winchData.forEach(function(w2){
+          if(!w2.inCase) stopHold[w2.id] = Math.min(w2.topLimit, w2.bottomLimit);
+        });
+        logLine('HOME ALL — every axis to its top limit, output off','warn');
       }, 750);
     }
     function disarm(){
@@ -5533,8 +5546,16 @@
     document.getElementById('calibrationExpectedTime').textContent = (calSpanCm(w)/Math.max(1,calEffSpeed(w))).toFixed(1)+' s at current calibration';
     var btn = document.getElementById('calibrationRunBtn');
     var ph = calibrationState.phase;
-    btn.textContent = ph===null ? 'Send to Top' : ph==='homing' ? 'Start Timed Run' : ph==='running' ? 'Mark Real Arrival' : ph==='measured' ? 'Apply to Model (all of type)' : 'Run Again';
-    document.getElementById('calibrationApplySelBtn').style.display = ph==='measured' ? '' : 'none';
+    btn.textContent = ph===null ? 'Send to Top' : ph==='homing' ? 'Start Timed Run' : ph==='running' ? 'Mark Real Arrival' : 'Run Again';
+    /* the trim field always holds the value that Apply will store: the fresh
+       measurement if there is one, otherwise what this fixture uses today */
+    var trim = document.getElementById('calTrimInp');
+    if(document.activeElement !== trim){
+      trim.value = calibrationState.pct !== undefined ? calibrationState.pct : calPctOf(w);
+    }
+    document.getElementById('calTrimEff').textContent =
+      '% of rated → ' + (w.maxSpeed*((+trim.value||100)/100)).toFixed(1) + ' cm/s · ' +
+      (calSpanCm(w)/Math.max(1, w.maxSpeed*((+trim.value||100)/100))).toFixed(1) + ' s end to end';
   }
   function openCalibrationModal(){
     var ids = Object.keys(selectedPatchIds).map(Number);
@@ -5593,32 +5614,55 @@
       var ratedCmS = Math.max(1, modelById(w.modelId).maxSpeedCmS || 75);
       var pct = Math.max(20, Math.min(300, Math.round(realCmS / ratedCmS * 100)));
       calibrationState.resultPct = pct;
+      calibrationState.pct = pct;      /* seeds the trim field */
       calibrationState.phase = 'measured';
       document.getElementById('calibrationMeasuredTime').textContent = measured.toFixed(2)+' s → real '+realCmS.toFixed(1)+' cm/s of '+ratedCmS+' rated → '+pct+'% — choose where to apply';
       logLine('Calibration measured: '+realCmS.toFixed(1)+' cm/s against '+ratedCmS+' cm/s rated ('+pct+'%) — apply to the model or to selected fixtures');
       updateCalModal();
-    } else if(calibrationState.phase==='measured'){
-      /* apply to the MODEL — global for every fixture of this type; any
-         per-fixture overrides on this model are cleared */
-      var mm = modelById(w.modelId);
-      mm.speedCalPct = calibrationState.resultPct;
-      var cnt = 0;
-      winchData.forEach(function(x){ if(x.modelId===mm.id){ delete x.speedCalPct; cnt++; } });
-      logLine('Calibration applied to model '+mm.name+' → '+mm.speedCalPct+'% — global for '+cnt+' fixture'+(cnt===1?'':'s'),'ok');
-      calibrationState.phase = 'done';
-      renderModelsTable(); updateCalModal();
     }
   });
+
+  /* ---- manual trim: dial the figure in until the rig and the Monitor agree ----
+     A timed run gets you close; stopwatch error and motor ramp-up mean the last
+     few percent are easier to find by watching the rig against the visualiser.
+     Nothing is stored until Apply, so trimming is always safe. */
+  function calTrimValue(){
+    return Math.max(20, Math.min(300, Math.round(+document.getElementById('calTrimInp').value) || 100));
+  }
+  function nudgeTrim(delta){
+    if(!calibrationState) return;
+    calibrationState.pct = Math.max(20, Math.min(300, calTrimValue() + delta));
+    document.getElementById('calTrimInp').value = calibrationState.pct;
+    updateCalModal();
+  }
+  document.getElementById('calTrimUp').addEventListener('click', function(){ nudgeTrim(1); });
+  document.getElementById('calTrimDown').addEventListener('click', function(){ nudgeTrim(-1); });
+  document.getElementById('calTrimInp').addEventListener('input', function(){
+    if(calibrationState) calibrationState.pct = calTrimValue();
+    updateCalModal();
+  });
+  document.getElementById('calApplyModelBtn').addEventListener('click', function(){
+    if(!calibrationState) return;
+    var w = winchById(calibrationState.id); if(!w) return;
+    var pct = calTrimValue();
+    pushUndo('calibration');
+    var mm = modelById(w.modelId);
+    mm.speedCalPct = pct;
+    var cnt = 0;
+    winchData.forEach(function(x){ if(x.modelId===mm.id){ delete x.speedCalPct; cnt++; } });
+    logLine('Calibration '+pct+'% applied to model '+mm.name+' — global for '+cnt+' fixture'+(cnt===1?'':'s'),'ok');
+    renderModelsTable(); renderPatchRows(); updateCalModal();
+  });
   document.getElementById('calibrationApplySelBtn').addEventListener('click', function(){
-    if(!calibrationState || calibrationState.phase!=='measured') return;
-    var pct = calibrationState.resultPct;
+    if(!calibrationState) return;
+    var pct = calTrimValue();     /* measured or hand-trimmed — whatever is showing */
     var ids = Object.keys(selectedPatchIds).map(Number);
     if(!ids.length) ids = [calibrationState.id];
+    pushUndo('calibration');
     var applied = 0;
     ids.forEach(function(id){ var x = winchById(id); if(x){ x.speedCalPct = pct; applied++; } });
-    logLine('Calibration applied to '+applied+' selected fixture'+(applied===1?'':'s')+' → '+pct+'% (overrides the model value)','ok');
-    calibrationState.phase = 'done';
-    updateCalModal();
+    logLine('Calibration '+pct+'% applied to '+applied+' selected fixture'+(applied===1?'':'s')+' (overrides the model value)','ok');
+    renderPatchRows(); updateCalModal();
   });
   /* live-updates the running timer during the timed run */
   setInterval(function(){
