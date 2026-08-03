@@ -86,11 +86,28 @@ function newKey() {
 /* ---------- Ed25519 signing (WebCrypto — same code runs in Node tests) ---------- */
 
 export async function makeSigner(pkcs8B64) {
-  const der = Uint8Array.from(atob(pkcs8B64.trim()), (c) => c.charCodeAt(0));
-  const keyPromise = crypto.subtle.importKey('pkcs8', der, { name: 'Ed25519' }, false, ['sign']);
+  if (!pkcs8B64) throw new Error('LICENSE_SIGNING_KEY secret is not set');
+  let der;
+  try {
+    der = Uint8Array.from(atob(String(pkcs8B64).trim()), (c) => c.charCodeAt(0));
+  } catch (_e) {
+    throw new Error('LICENSE_SIGNING_KEY is not valid base64 (upload signing-key.b64 verbatim)');
+  }
+  // Workers has spelled Ed25519 two ways depending on compatibility date;
+  // accept either so the deployment does not hinge on that detail.
+  let key = null, algo = null, firstErr = null;
+  for (const a of [{ name: 'Ed25519' }, { name: 'NODE-ED25519', namedCurve: 'NODE-ED25519' }]) {
+    try {
+      key = await crypto.subtle.importKey('pkcs8', der, a, false, ['sign']);
+      algo = a;
+      break;
+    } catch (err) { if (!firstErr) firstErr = err; }
+  }
+  if (!key) {
+    throw new Error('Runtime rejected the Ed25519 signing key: ' + ((firstErr && firstErr.message) || firstErr));
+  }
   return async (payloadB64) => {
-    const key = await keyPromise;
-    const sig = await crypto.subtle.sign('Ed25519', key, new TextEncoder().encode(payloadB64));
+    const sig = await crypto.subtle.sign(algo, key, new TextEncoder().encode(payloadB64));
     return btoa(String.fromCharCode(...new Uint8Array(sig)));
   };
 }
@@ -124,11 +141,48 @@ function d1Store(db) {
 const json = (status, body) =>
   new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
 
+/* Exercises every dependency so a deploy can be checked in one request,
+   instead of discovering a missing secret or table on a customer's first
+   activation. Reports which part is broken, never the secret itself. */
+async function health(env) {
+  const out = { ok: true, product: PRODUCT, db: 'ok', signing: 'ok', adminToken: env.ADMIN_TOKEN ? 'set' : 'MISSING' };
+  try {
+    await env.DB.prepare('SELECT COUNT(*) AS n FROM licenses').first();
+  } catch (err) {
+    out.ok = false;
+    out.db = 'FAILED — ' + ((err && err.message) || err) +
+      ' (run: wrangler d1 execute blk-motion-license --remote --file=schema.sql)';
+  }
+  try {
+    const sign = await makeSigner(env.LICENSE_SIGNING_KEY);
+    const sig = await sign('healthcheck');
+    if (!sig || sig.length < 32) throw new Error('signature was empty');
+  } catch (err) {
+    out.ok = false;
+    out.signing = 'FAILED — ' + ((err && err.message) || err);
+  }
+  if (!env.ADMIN_TOKEN) out.ok = false;
+  return out;
+}
+
 export default {
   async fetch(request, env) {
+    try {
+      return await route(request, env);
+    } catch (err) {
+      // a bare 500 tells nobody anything — say what broke
+      return json(500, { ok: false, error: 'Server error: ' + ((err && err.message) || String(err)) });
+    }
+  }
+};
+
+async function route(request, env) {
     const url = new URL(request.url);
     const path = url.pathname;
-    if (path === '/health') return json(200, { ok: true, product: PRODUCT });
+    if (path === '/health') {
+      const h = await health(env);
+      return json(h.ok ? 200 : 503, h);
+    }
 
     const api = createApi(d1Store(env.DB), await makeSigner(env.LICENSE_SIGNING_KEY));
 
@@ -152,5 +206,4 @@ export default {
     if (path === '/activate') { const r = await api.activate(body); return json(r.status, r.body); }
     if (path === '/deactivate') { const r = await api.deactivate(body); return json(r.status, r.body); }
     return json(404, { ok: false, error: 'not found' });
-  }
-};
+}

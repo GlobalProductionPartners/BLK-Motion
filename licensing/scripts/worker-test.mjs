@@ -35,6 +35,14 @@ check('unknown key refused', unk.ok === false);
 const act1 = await call('/activate', { key: issued.key, machineId: 'machine-1', machineName: 'FOH Mac' });
 check('activate machine-1', act1.ok === true);
 const sigOk = edVerify(null, Buffer.from(act1.license.payload, 'utf8'), createPublicKey(pubPem), Buffer.from(act1.license.sig, 'base64'));
+if (!sigOk) {
+  // Not a code fault: the local private key and the public key compiled into
+  // the app are from different generations. Whatever is deployed as
+  // LICENSE_SIGNING_KEY must be the partner of the key in src/main/license.js,
+  // or every activation will be refused by the app as an invalid signature.
+  console.log('CONFIG · licensing/signing-key.b64 does NOT match the public key in src/main/license.js');
+  console.log('         (keypair was rotated) — the Worker secret must hold the private half of the app key.');
+}
 check('signature verifies with the key embedded in the app', sigOk);
 const payload = JSON.parse(Buffer.from(act1.license.payload, 'base64').toString());
 check('payload bound to machine + product', payload.machineId === 'machine-1' && payload.product === 'blk-motion' && payload.customer === 'Acme Productions');
