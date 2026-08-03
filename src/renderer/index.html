@@ -5556,9 +5556,18 @@
     var w = winchById(calibrationState.id); if(!w) return;
     var m = modelById(w.modelId);
     document.getElementById('calibrationFixtureInfo').textContent = 'Fixture '+w.name+' — '+m.name+' · '+w.blkAddr+' · current calibration '+(m.speedCalPct||100)+'%';
-    document.getElementById('calibrationCurrentSpeed').textContent = w.maxSpeed+' cm/s cap · effective '+calEffSpeed(w).toFixed(1)+' cm/s';
+    /* The timed run deliberately commands the model's RATED speed — the
+       per-fixture Max cm/s cap is cancelled for the duration — so the expected
+       time has to be quoted at rated too. Quoting the capped figure made the
+       motor look early against the operator's stopwatch. */
+    var ratedNow = Math.max(1, m.maxSpeedCmS || 75);
+    var upNow = (calibrationState.phase==='gotDown' || calibrationState.phase==='runUp');
+    var runCmS = ratedNow * (calPctDir(w, upNow)/100);
+    document.getElementById('calibrationCurrentSpeed').textContent =
+      w.maxSpeed+' cm/s cap · '+calEffSpeed(w).toFixed(1)+' cm/s in the show · run uses '+ratedNow+' cm/s rated';
     document.getElementById('calibrationTravelSpan').textContent = Math.abs(w.bottomLimit-w.topLimit)+' DMX · '+(calSpanCm(w)/100).toFixed(2)+' m';
-    document.getElementById('calibrationExpectedTime').textContent = (calSpanCm(w)/Math.max(1,calEffSpeed(w))).toFixed(1)+' s at current calibration';
+    document.getElementById('calibrationExpectedTime').textContent =
+      (calSpanCm(w)/runCmS).toFixed(1)+' s '+(upNow?'up':'down')+' at rated speed and current calibration';
     var btn = document.getElementById('calibrationRunBtn');
     var ph = calibrationState.phase;
     btn.textContent =
