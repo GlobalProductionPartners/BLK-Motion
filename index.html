@@ -1104,7 +1104,6 @@
                 <div class="set-row"><label>Machine ID</label><span class="mono" id="licMachine" style="font-size:11px; user-select:text;">—</span><span class="unit">read this to support when asked</span></div>
                 <div class="set-row"><label>License key</label><input type="text" id="licKeyInp" placeholder="BLKM-XXXX-XXXX-XXXX-XXXX" spellcheck="false" style="width:240px; font-family:var(--mono);"><button class="flat-btn" id="licActivateBtn">Activate</button><button class="flat-btn" id="licDeactivateBtn" style="display:none;">Deactivate this machine</button></div>
                 <div class="set-row"><label>Server</label><input type="text" data-set="licenseServer" placeholder="default"><span class="unit">leave blank unless support says otherwise</span></div>
-                <div class="set-row"><label>Demo mode</label><input type="checkbox" id="licDemoChk"><span class="unit">hold this machine silent — no DMX, Art-Net, sACN, OSC or USB in or out. Resets to live on restart.</span></div>
                 <div class="set-row"><label></label><span id="licMsg" style="font-size:11px; color:var(--text-3);"></span></div>
               </div>
             </div>
@@ -7029,7 +7028,6 @@
         demoMode = !!st.demo;
         ioAllowed = st.ioAllowed !== false;
         document.getElementById('demoChip').hidden = !demoMode;
-        document.getElementById('licDemoChk').checked = demoMode;
         document.getElementById('licMachine').textContent = st.machineId;
         document.getElementById('lgMachine').textContent = st.machineId;
         var el = document.getElementById('licStatus');
@@ -7085,16 +7083,12 @@
           }
         });
       });
-      function setDemo(on){
-        return window.blk.license.setDemo(on).then(function(st){
+      document.getElementById('lgDemoBtn').addEventListener('click', function(){
+        window.blk.license.enterDemo().then(function(st){
           applyStatus(st);
-          if(on) logLine('DEMO MODE — every input and output is disabled: no DMX, Art-Net, sACN, OSC or USB leaves this machine','warn');
-          else if(st.licensed) logLine('Demo mode off — live output restored','ok');
-          else logLine('Demo mode off — activation required before this machine can output','warn');
+          logLine('DEMO MODE — every input and output is disabled: no DMX, Art-Net, sACN, OSC or USB leaves this machine','warn');
         });
-      }
-      document.getElementById('lgDemoBtn').addEventListener('click', function(){ setDemo(true); });
-      document.getElementById('licDemoChk').addEventListener('change', function(){ setDemo(this.checked); });
+      });
       document.getElementById('licChip').addEventListener('click', function(){
         document.querySelector('.rail-btn[data-view="settings"]').click();
         if(openSettingsTab) openSettingsTab('license');

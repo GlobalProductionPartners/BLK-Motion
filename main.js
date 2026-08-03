@@ -445,16 +445,10 @@ ipcMain.handle('license:deactivate', async (_event, { serverUrl }) => {
   if (res.ok) { evaluateLicence(); res.status = licenceMode(); } // and close again
   return res;
 });
-/* Demo is a MODE, not just an unlicensed fallback: a licensed operator
-   programming away from the rig (or demonstrating the software) can hold the
-   whole machine silent deliberately. Leaving demo restores live output if the
-   licence allows it, and drops back to the gate if it does not.
-   Session-only on purpose — every launch starts live, so a rig can never be
-   dead on a show night because demo was left on days earlier. */
-ipcMain.handle('license:set-demo', (_event, on) => {
-  demoMode = !!on;
-  if (demoMode) { ioAllowed = false; stopProtocols(); }
-  else { evaluateLicence(); }
+ipcMain.handle('license:enter-demo', () => {
+  demoMode = true;
+  ioAllowed = false;
+  stopProtocols();   // demo transmits and receives nothing, ever
   return licenceMode();
 });
 
