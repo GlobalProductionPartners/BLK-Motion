@@ -21,6 +21,18 @@
 
 const PRODUCT = 'blk-motion';
 
+/* btoa() only accepts Latin1, so a customer name carrying a curly apostrophe,
+   an accent or an em-dash would throw and fail the activation. Encode the
+   payload as UTF-8 bytes first. The app decodes with
+   Buffer.from(payload,'base64').toString('utf8'), so this stays compatible
+   with licences issued before the fix (ASCII is valid UTF-8). */
+function b64FromUtf8(str) {
+  const bytes = new TextEncoder().encode(str);
+  let bin = '';
+  for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+  return btoa(bin);
+}
+
 /* ---------- store-agnostic core (unit-testable without D1) ---------- */
 
 export function createApi(store, signPayload) {
@@ -45,7 +57,7 @@ export function createApi(store, signPayload) {
       machineId,
       issued: new Date().toISOString()
     };
-    const payloadB64 = btoa(JSON.stringify(payload));
+    const payloadB64 = b64FromUtf8(JSON.stringify(payload));
     const sig = await signPayload(payloadB64);
     return { status: 200, body: { ok: true, license: { payload: payloadB64, sig } } };
   }

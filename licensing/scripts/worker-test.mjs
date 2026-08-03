@@ -49,6 +49,16 @@ check('payload bound to machine + product', payload.machineId === 'machine-1' &&
 const tampered = edVerify(null, Buffer.from(act1.license.payload.replace(/.$/, 'A'), 'utf8'), createPublicKey(pubPem), Buffer.from(act1.license.sig, 'base64'));
 check('tampered payload fails verification', !tampered);
 
+// non-ASCII customer names must survive: btoa() is Latin1-only, so a curly
+// apostrophe or an accent used to throw and break activation entirely
+const uni = await call('/admin/keys', { customer: 'Café Lumière — Ólafur’s Tour', seats: 1 }, { authorization: 'Bearer test-admin' });
+const uniAct = await call('/activate', { key: uni.key, machineId: 'unicode-machine' });
+check('activation survives a non-ASCII customer name', uniAct.ok === true);
+if (uniAct.ok) {
+  const uniPayload = JSON.parse(Buffer.from(uniAct.license.payload, 'base64').toString('utf8'));
+  check('non-ASCII name round-trips intact', uniPayload.customer === 'Café Lumière — Ólafur’s Tour');
+}
+
 // seats: same machine re-activates freely; a 3rd machine is refused at 2 seats
 const re1 = await call('/activate', { key: issued.key, machineId: 'machine-1' });
 check('same machine re-activates (reinstall)', re1.ok === true);

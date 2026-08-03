@@ -24,6 +24,18 @@ key returned 1101. The seat was even consumed before the crash.
 Ed25519 that the Workers runtime has used are accepted, `/health` now exercises
 the whole chain, and uncaught throws return their message instead of a bare 500.
 
+**Also fixed in the same redeploy — non-ASCII customer names.** The licence
+payload was base64-encoded with `btoa()`, which only accepts Latin1. A customer
+name containing a curly apostrophe, an accent or an em-dash (`Ólafur's`,
+`Café Lumière`, `BLK — Tour`) threw:
+
+```
+Server error: btoa() can only operate on characters in the Latin1 (ISO/IEC 8859-1) range.
+```
+
+The payload is now encoded as UTF-8 bytes first. Licences issued before the fix
+still validate, since plain ASCII is already valid UTF-8.
+
 ### Do this
 
 ```sh
@@ -154,6 +166,9 @@ curl -X POST <WORKER-URL>/deactivate \
 Then activate for real in the app. A **500 at step 3** means Fault 1 is not
 deployed. A step 3 that succeeds but the **app** rejecting the licence means
 Fault 2 is not resolved.
+
+If step 2 uses a customer name with accents or curly punctuation, it also
+confirms the UTF-8 fix is live.
 
 ---
 
