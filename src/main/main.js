@@ -19,6 +19,51 @@ let usbdmx = null;
 let sacnIn = null;
 let deskCfg = { proto: 'off', universes: [] }; // console-input config, from renderer
 
+/*
+ * LICENCE GATE — the main process is the authority, not the UI.
+ *
+ * Every socket lives here, so this is the only place a block can actually
+ * hold: an overlay in the renderer would still leave Art-Net streaming
+ * behind it. Until the app is licensed no protocol is even constructed, and
+ * every send/scan IPC refuses. Demo mode is the same lockdown with the UI
+ * unlocked — it can never transmit or receive a single packet.
+ */
+let ioAllowed = false;   // true only when properly licensed
+let demoMode = false;    // user chose to explore with all I/O dead
+let netCfg = null;       // last network config, applied once I/O is permitted
+
+function licenceEnforced() {
+  // packaged builds always enforce; BLK_LICENSE_ENFORCE=1 exercises it in dev
+  return app.isPackaged || process.env.BLK_LICENSE_ENFORCE === '1';
+}
+
+function startProtocols() {
+  startArtnet(netCfg ? { bindPort: netCfg.artnetPort, broadcast: netCfg.artnetBroadcast } : {});
+  if (!sacn) {
+    sacn = new SACN();
+    sacn.onError = (err) => reportNetError('sACN', err);
+  }
+  startOsc(netCfg && netCfg.oscPort);
+  if (netCfg) applyNetworkConfig(netCfg);
+}
+
+function stopProtocols() {
+  if (artnet) { artnet.close(); artnet = null; }
+  if (sacn) { sacn.close(); sacn = null; }
+  if (osc) { osc.close(); osc = null; }
+  if (usbdmx) { usbdmx.close(); usbdmx = null; }
+  if (sacnIn) { sacnIn.close(); sacnIn = null; }
+}
+
+function evaluateLicence() {
+  const st = license.status();
+  const allowed = st.licensed || !licenceEnforced();
+  if (allowed && !ioAllowed) { ioAllowed = true; demoMode = false; startProtocols(); }
+  else if (!allowed && ioAllowed) { ioAllowed = false; stopProtocols(); }
+  return st;
+}
+const BLOCKED = () => ({ ok: false, blocked: true, demo: demoMode });
+
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1440,
@@ -242,10 +287,8 @@ app.whenReady().then(() => {
   buildAppMenu();
   createWindow();
 
-  startArtnet();
-  sacn = new SACN();
-  sacn.onError = (err) => reportNetError('sACN', err);
-  startOsc();
+  // nothing opens a socket until the licence says so
+  evaluateLicence();
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
@@ -264,21 +307,25 @@ app.on('window-all-closed', () => {
 /* ---------- IPC: networking ---------- */
 
 ipcMain.handle('artnet:send-dmx', (_event, { universe, data }) => {
+  if (!ioAllowed) return BLOCKED();
   if (artnet) artnet.sendDmx(universe, Buffer.from(data));
   return { ok: true };
 });
 
 ipcMain.handle('artnet:poll', () => {
+  if (!ioAllowed) return BLOCKED();
   if (artnet) artnet.poll();
   return { ok: true };
 });
 
 ipcMain.handle('sacn:send-dmx', (_event, { universe, data, sourceName }) => {
+  if (!ioAllowed || !sacn) return BLOCKED();
   sacn.sendDmx(universe, Buffer.from(data), sourceName || 'BLK Motion');
   return { ok: true };
 });
 
 ipcMain.handle('osc:send', (_event, { host, port, address, args }) => {
+  if (!ioAllowed) return BLOCKED();
   if (osc) osc.send(host, port, address, args || []);
   return { ok: true };
 });
@@ -286,6 +333,12 @@ ipcMain.handle('osc:send', (_event, { host, port, address, args }) => {
 /* ---------- IPC: settings (from the renderer's Settings page) ---------- */
 
 ipcMain.handle('settings:apply-network', (_event, cfg = {}) => {
+  netCfg = cfg;                       // remembered for when a licence arrives
+  if (!ioAllowed) return BLOCKED();
+  return applyNetworkConfig(cfg);
+});
+
+function applyNetworkConfig(cfg = {}) {
   try {
     const artnetPort = Math.min(65535, Math.max(1024, +cfg.artnetPort || 6454));
     const artnetBroadcast = typeof cfg.artnetBroadcast === 'string' && cfg.artnetBroadcast.trim()
@@ -316,14 +369,16 @@ ipcMain.handle('settings:apply-network', (_event, cfg = {}) => {
   } catch (err) {
     return { ok: false, error: String((err && err.message) || err) };
   }
-});
+}
 
 ipcMain.handle('usbdmx:list', async () => {
+  if (!ioAllowed) return []; // no device enumeration in demo either
   try { return await UsbDmx.listPorts(); }
   catch (_err) { return []; } // serialport module unavailable
 });
 
 ipcMain.handle('usbdmx:send-dmx', (_event, { data }) => {
+  if (!ioAllowed) return BLOCKED();
   if (usbdmx) usbdmx.sendDmx(Buffer.from(data));
   return { ok: true };
 });
@@ -360,13 +415,38 @@ ipcMain.handle('mvr:open', async () => {
 
 /* ---------- IPC: console (desk) input ---------- */
 
-ipcMain.handle('desk:config', (_event, cfg) => applyDeskConfig(cfg));
+ipcMain.handle('desk:config', (_event, cfg) => {
+  if (!ioAllowed) return BLOCKED(); // console input is receiving — also blocked
+  return applyDeskConfig(cfg);
+});
 
 /* ---------- IPC: licensing (hardware-locked, offline after activation) ---------- */
 
-ipcMain.handle('license:status', () => license.status());
-ipcMain.handle('license:activate', (_event, { serverUrl, key }) => license.activate(serverUrl, key));
-ipcMain.handle('license:deactivate', (_event, { serverUrl }) => license.deactivate(serverUrl));
+function licenceMode() {
+  const st = license.status();
+  st.enforced = licenceEnforced();
+  st.demo = demoMode;
+  st.ioAllowed = ioAllowed;
+  st.blocked = st.enforced && !st.licensed && !demoMode;
+  return st;
+}
+ipcMain.handle('license:status', () => licenceMode());
+ipcMain.handle('license:activate', async (_event, { serverUrl, key }) => {
+  const res = await license.activate(serverUrl, key);
+  if (res.ok) { evaluateLicence(); res.status = licenceMode(); } // sockets open now
+  return res;
+});
+ipcMain.handle('license:deactivate', async (_event, { serverUrl }) => {
+  const res = await license.deactivate(serverUrl);
+  if (res.ok) { evaluateLicence(); res.status = licenceMode(); } // and close again
+  return res;
+});
+ipcMain.handle('license:enter-demo', () => {
+  demoMode = true;
+  ioAllowed = false;
+  stopProtocols();   // demo transmits and receives nothing, ever
+  return licenceMode();
+});
 
 /* ---------- IPC: show file save/load ---------- */
 

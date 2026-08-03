@@ -48,7 +48,8 @@ contextBridge.exposeInMainWorld('blk', {
   license: {
     status: () => ipcRenderer.invoke('license:status'),
     activate: (serverUrl, key) => ipcRenderer.invoke('license:activate', { serverUrl, key }),
-    deactivate: (serverUrl) => ipcRenderer.invoke('license:deactivate', { serverUrl })
+    deactivate: (serverUrl) => ipcRenderer.invoke('license:deactivate', { serverUrl }),
+    enterDemo: () => ipcRenderer.invoke('license:enter-demo')
   },
   platform: process.platform
 });
