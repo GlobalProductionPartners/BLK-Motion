@@ -33,7 +33,7 @@ export function fakeD1() {
                 return { meta: { changes: n } };
               }
               if (sql.startsWith('INSERT INTO licenses')) {
-                licenses.set(args[0], { key: args[0], customer: args[1], email: args[2], seats: args[3], note: args[4], status: 'active', created_at: new Date().toISOString() });
+                licenses.set(args[0], { key: args[0], customer: args[1], email: args[2], seats: args[3], note: args[4], kind: args[5] || 'full', status: 'active', created_at: new Date().toISOString() });
                 return { meta: { changes: 1 } };
               }
               throw new Error('fake-d1: unhandled run(): ' + sql);

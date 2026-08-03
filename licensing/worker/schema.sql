@@ -4,6 +4,7 @@ CREATE TABLE IF NOT EXISTS licenses (
   customer   TEXT NOT NULL,
   email      TEXT NOT NULL DEFAULT '',
   seats      INTEGER NOT NULL DEFAULT 1,
+  kind       TEXT NOT NULL DEFAULT 'full',   -- 'full' = drives hardware, 'demo' = silent
   note       TEXT NOT NULL DEFAULT '',
   status     TEXT NOT NULL DEFAULT 'active',  -- active | revoked
   created_at TEXT NOT NULL

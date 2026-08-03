@@ -656,7 +656,7 @@
   <div class="crumb" id="crumbShow">Untitled Show</div>
   <span class="sys-state idle" id="sysState">Idle</span>
   <button class="lic-chip" id="licChip" hidden title="Not licensed — click to activate">Unlicensed</button>
-  <span class="demo-chip" id="demoChip" hidden title="Demo mode — no DMX, Art-Net, sACN, OSC or USB is sent or received">Demo · No Output</span>
+  <span class="demo-chip" id="demoChip" hidden title="Demo — no DMX, Art-Net, sACN, OSC or USB is sent or received">Demo · No Output</span>
   <div class="active-cue"><label>Active cue</label><b id="activeCueName">—</b></div>
   <div class="safety-cluster">
     <span class="vp-stat" title="Winches the active cue would push past their rated speed"><span class="indicator safe" id="speedIndicator"></span>Speed <b id="speedStatus">24/24</b></span>
@@ -7029,15 +7029,18 @@
         document.getElementById('demoChip').hidden = !demoMode;
         var demoChk = document.getElementById('licDemoChk');
         demoChk.checked = demoMode;
-        demoChk.disabled = !st.licensed;      /* no demo without a licence */
-        demoChk.title = st.licensed ? '' : 'Activate first — demo is a licensed mode';
+        /* a demo licence pins this on — there is nothing to toggle */
+        demoChk.disabled = !st.licensed || !!st.demoLicence;
+        demoChk.title = !st.licensed ? 'Activate first — demo is a licensed mode'
+                      : st.demoLicence ? 'This is a demo licence — output is permanently disabled'
+                      : '';
         document.getElementById('licMachine').textContent = st.machineId;
         document.getElementById('lgMachine').textContent = st.machineId;
         var el = document.getElementById('licStatus');
         var keyRowVisible = !st.licensed;
         if(st.licensed){
-          el.textContent = 'Licensed to '+st.customer+' · '+maskKey(st.key)+(st.seats>1?' · '+st.seats+' seats':'');
-          el.style.color = 'var(--green)';
+          el.textContent = (st.demoLicence ? 'DEMO licence — ' : 'Licensed to ')+st.customer+' · '+maskKey(st.key)+(st.seats>1?' · '+st.seats+' seats':'');
+          el.style.color = st.demoLicence ? 'var(--yellow)' : 'var(--green)';
         } else {
           el.textContent = st.error ? 'Unlicensed — '+st.error : 'Unlicensed';
           el.style.color = st.error ? 'var(--red)' : 'var(--text-2)';

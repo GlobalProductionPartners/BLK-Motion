@@ -59,6 +59,22 @@ if (uniAct.ok) {
   check('non-ASCII name round-trips intact', uniPayload.customer === 'Café Lumière — Ólafur’s Tour');
 }
 
+// DEMO LICENCES: activate normally but carry kind='demo' so the app stays silent
+const demoKey = await call('/admin/keys', { customer: 'Prospect Ltd', seats: 1, kind: 'demo' }, { authorization: 'Bearer test-admin' });
+check('mint a demo licence', demoKey.ok === true && demoKey.kind === 'demo');
+const demoAct = await call('/activate', { key: demoKey.key, machineId: 'prospect-machine' });
+check('demo licence activates', demoAct.ok === true);
+if (demoAct.ok) {
+  const dp = JSON.parse(Buffer.from(demoAct.license.payload, 'base64').toString('utf8'));
+  check('payload marks it demo', dp.kind === 'demo');
+}
+const fullAct = await call('/activate', { key: issued.key, machineId: 'machine-kindcheck' });
+const fp = JSON.parse(Buffer.from(fullAct.license.payload, 'base64').toString('utf8'));
+check('normal licences stay full', fp.kind === 'full');
+await call('/deactivate', { key: issued.key, machineId: 'machine-kindcheck' });
+const badKind = await call('/admin/keys', { customer: 'X', kind: 'sneaky' }, { authorization: 'Bearer test-admin' });
+check('invalid kind rejected', badKind.ok === false);
+
 // seats: same machine re-activates freely; a 3rd machine is refused at 2 seats
 const re1 = await call('/activate', { key: issued.key, machineId: 'machine-1' });
 check('same machine re-activates (reinstall)', re1.ok === true);

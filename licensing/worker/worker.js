@@ -54,6 +54,7 @@ export function createApi(store, signPayload) {
       key: lic.key,
       customer: lic.customer,
       seats: lic.seats,
+      kind: lic.kind || 'full',   // 'demo' licences activate but never output
       machineId,
       issued: new Date().toISOString()
     };
@@ -68,16 +69,20 @@ export function createApi(store, signPayload) {
     return { status: 200, body: { ok: true, released: n } };
   }
 
-  async function adminCreateKey({ customer, email, seats, note }) {
+  async function adminCreateKey({ customer, email, seats, note, kind }) {
     if (!customer) return { status: 400, body: { ok: false, error: 'customer required' } };
+    if (kind && kind !== 'full' && kind !== 'demo') {
+      return { status: 400, body: { ok: false, error: "kind must be 'full' or 'demo'" } };
+    }
     const key = newKey();
     await store.createLicense({
       key, customer,
       email: email || '',
       seats: Math.max(1, Math.min(100, +seats || 1)),
-      note: note || ''
+      note: note || '',
+      kind: kind === 'demo' ? 'demo' : 'full'
     });
-    return { status: 200, body: { ok: true, key } };
+    return { status: 200, body: { ok: true, key, kind: kind === 'demo' ? 'demo' : 'full' } };
   }
 
   async function adminList() {
@@ -140,8 +145,8 @@ function d1Store(db) {
       return r.meta.changes;
     },
     createLicense: (l) =>
-      db.prepare('INSERT INTO licenses (key, customer, email, seats, note, status, created_at) VALUES (?, ?, ?, ?, ?, \'active\', datetime(\'now\'))')
-        .bind(l.key, l.customer, l.email, l.seats, l.note).run(),
+      db.prepare('INSERT INTO licenses (key, customer, email, seats, note, kind, status, created_at) VALUES (?, ?, ?, ?, ?, ?, \'active\', datetime(\'now\'))')
+        .bind(l.key, l.customer, l.email, l.seats, l.note, l.kind || 'full').run(),
     listLicenses: async () =>
       (await db.prepare(`SELECT l.*, (SELECT COUNT(*) FROM activations a WHERE a.license_key = l.key AND a.deactivated_at IS NULL) AS seats_used
                          FROM licenses l ORDER BY l.created_at DESC`).all()).results

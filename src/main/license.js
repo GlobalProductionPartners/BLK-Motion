@@ -87,7 +87,8 @@ function verifyBlob(blob) {
   catch (_err) { return { licensed: false, error: 'Corrupt license payload' }; }
   if (lic.product !== PRODUCT) return { licensed: false, error: 'License is for a different product' };
   if (lic.machineId !== machineId()) return { licensed: false, error: 'License is bound to a different machine' };
-  return { licensed: true, key: lic.key, customer: lic.customer, seats: lic.seats, issued: lic.issued };
+  return { licensed: true, key: lic.key, customer: lic.customer, seats: lic.seats,
+           kind: lic.kind === 'demo' ? 'demo' : 'full', issued: lic.issued };
 }
 
 function status() {

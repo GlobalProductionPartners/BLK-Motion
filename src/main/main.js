@@ -61,6 +61,14 @@ function stopProtocols() {
 
 function evaluateLicence() {
   const st = license.status();
+  // A DEMO LICENCE never drives hardware: it activates and unlocks the whole
+  // app, but the machine stays silent for the life of that licence. Held here
+  // so it cannot be argued with from the renderer.
+  if (st.licensed && st.kind === 'demo') {
+    demoMode = true;
+    if (ioAllowed) { ioAllowed = false; stopProtocols(); }
+    return st;
+  }
   const allowed = st.licensed || !licenceEnforced();
   if (allowed && !ioAllowed) { ioAllowed = true; demoMode = false; startProtocols(); }
   else if (!allowed && ioAllowed) { ioAllowed = false; stopProtocols(); }
@@ -430,6 +438,7 @@ function licenceMode() {
   const st = license.status();
   st.enforced = licenceEnforced();
   st.demo = demoMode;
+  st.demoLicence = st.licensed && st.kind === 'demo';
   st.ioAllowed = ioAllowed;
   st.blocked = st.enforced && !st.licensed && !demoMode;
   return st;
@@ -453,9 +462,15 @@ ipcMain.handle('license:deactivate', async (_event, { serverUrl }) => {
    Session-only on purpose — every launch starts live, so a rig can never be
    dead on a show night because demo was left on days earlier. */
 ipcMain.handle('license:set-demo', (_event, on) => {
-  if (on && !license.status().licensed) {
+  const cur = license.status();
+  if (on && !cur.licensed) {
     const st = licenceMode();
     st.error = 'Demo mode requires a licence';
+    return st;
+  }
+  if (!on && cur.licensed && cur.kind === 'demo') {
+    const st = licenceMode();
+    st.error = 'This is a demo licence — output stays disabled';
     return st;
   }
   demoMode = !!on;

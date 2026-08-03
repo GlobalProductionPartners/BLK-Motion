@@ -62,6 +62,34 @@ wrangler deploy
 
 ## Issuing license keys
 
+### Demo keys (activate, but never drive hardware)
+
+A **demo licence** unlocks the whole application while keeping the machine
+permanently silent — no DMX, Art-Net, sACN, OSC or USB, in or out. Hand one to
+a prospect and they can build shows and use the visualiser, but they cannot run
+a rig. The app labels it *DEMO licence* in Settings and shows a red
+`DEMO · NO OUTPUT` chip; it cannot be switched to live, and refuses to be even
+if the IPC is called directly.
+
+```sh
+curl -X POST https://<worker-url>/admin/keys \
+  -H "Authorization: Bearer <ADMIN_TOKEN>" \
+  -H "Content-Type: application/json" \
+  -d '{"customer":"Prospect Ltd","email":"them@example.com","seats":1,"kind":"demo"}'
+# → {"ok":true,"key":"BLKM-XXXX-XXXX-XXXX-XXXX","kind":"demo"}
+```
+
+Omit `kind` (or pass `"kind":"full"`) for a normal licence. A key's kind is
+fixed at issue — to convert a prospect, issue them a full key and have them
+activate it; deactivating the demo key first frees its seat.
+
+> One-off migration: a database created before demo licences existed needs the
+> new column before demo keys can be issued —
+> `wrangler d1 execute blk-motion-license --remote --file=migrate-add-kind.sql`.
+> Existing keys keep full output.
+
+
+
 ```sh
 curl -X POST https://<worker-url>/admin/keys \
   -H "Authorization: Bearer <ADMIN_TOKEN>" \
