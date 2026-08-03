@@ -1473,8 +1473,16 @@
      check and the visualization can never disagree.
      ========================================================================== */
   var WAVE_FREQ = 0.1; // cycles per second at 100% rate
+  /* the longest cable in the rig — a given % travels furthest (so fastest)
+     on that model, which is the conservative one to test against */
+  function refLiftM(){
+    var best = 0;
+    winchData.forEach(function(w){ best = Math.max(best, modelLiftM(modelById(w.modelId))); });
+    if(!best) WINCH_MODELS.forEach(function(m){ best = Math.max(best, modelLiftM(m)); });
+    return best || 6;
+  }
   function motionSpeedInfo(param){
-    var range = Math.abs(param.high-param.low); // mm
+    var range = Math.abs(param.high-param.low)/100 * refLiftM()*1000; // % of travel → mm
     var freq = (param.rate/100)*WAVE_FREQ;
     if(param.shape==='static') return { peakCmS:0, isStep:false };
     if(param.shape==='square' || param.shape==='random' || param.shape==='bitmap') return { peakCmS:Infinity, isStep:true };
@@ -1496,11 +1504,11 @@
   /* Presets are saved cue snapshots — a library separate from the live cue
      grid. Ships with a few classic looks so a new show isn't a dead end. */
   var presets = [
-    { name:'Wave L→R',       m:{shape:'sine',     dir:'lr',     low:0,    high:4500, rate:50}, d:{shape:'sine', low:10, high:100}, c:{low:'#e2a63d', high:'#ececea', dir:'lr'},     sync:true  },
-    { name:'Slow Breathe',   m:{shape:'sine',     dir:'sync',   low:800,  high:3200, rate:25}, d:{shape:'sine', low:20, high:85 }, c:{low:'#5590d9', high:'#ececea', dir:'sync'},   sync:true  },
-    { name:'Ripple Out',     m:{shape:'triangle', dir:'center', low:0,    high:4000, rate:60}, d:{shape:'sine', low:15, high:100}, c:{low:'#4da05e', high:'#ececea', dir:'center'}, sync:true  },
-    { name:'Diagonal Sweep', m:{shape:'ramp',     dir:'diag',   low:500,  high:4500, rate:45}, d:{shape:'sine', low:10, high:100}, c:{low:'#5590d9', high:'#d84a38', dir:'diag'},   sync:false },
-    { name:'Amber Wash',     m:{shape:'sine',     dir:'sync',   low:1500, high:1500, rate:0 }, d:{shape:'sine', low:60, high:60 }, c:{low:'#e2a63d', high:'#e2a63d', dir:'sync'},   sync:false }
+    { name:'Wave L→R',       m:{shape:'sine',     dir:'lr',     low:0,   high:75, rate:50}, d:{shape:'sine', low:10, high:100}, c:{low:'#e2a63d', high:'#ececea', dir:'lr'},     sync:true  },
+    { name:'Slow Breathe',   m:{shape:'sine',     dir:'sync',   low:13,  high:53, rate:25}, d:{shape:'sine', low:20, high:85 }, c:{low:'#5590d9', high:'#ececea', dir:'sync'},   sync:true  },
+    { name:'Ripple Out',     m:{shape:'triangle', dir:'center', low:0,   high:67, rate:60}, d:{shape:'sine', low:15, high:100}, c:{low:'#4da05e', high:'#ececea', dir:'center'}, sync:true  },
+    { name:'Diagonal Sweep', m:{shape:'ramp',     dir:'diag',   low:8,   high:75, rate:45}, d:{shape:'sine', low:10, high:100}, c:{low:'#5590d9', high:'#d84a38', dir:'diag'},   sync:false },
+    { name:'Amber Wash',     m:{shape:'sine',     dir:'sync',   low:25,  high:25, rate:0 }, d:{shape:'sine', low:60, high:60 }, c:{low:'#e2a63d', high:'#e2a63d', dir:'sync'},   sync:false }
   ].map(function(r){
     var motion = defaultParam(r.m.shape, r.m.low, r.m.high); motion.rate = r.m.rate; motion.dist.dir = r.m.dir; applyDist(motion);
     var dimmer = defaultParam(r.d.shape, r.d.low, r.d.high);
@@ -3013,7 +3021,7 @@
           shapeRowHtml(key, param, true) +
           '<canvas class="wave-preview" id="bmprev-'+key+'" height="56"></canvas>' +
           '<div class="preset-actions"><button class="flat-btn" data-loadbitmap="'+key+'">Load Image…</button></div>' +
-          '<div class="lohi-row"><div class="field"><label>Low'+(key==='motion'?' (mm)':' (%)')+'</label><input type="number" data-p="'+key+'" data-f="low" value="'+param.low+'"></div><div class="field"><label>High'+(key==='motion'?' (mm)':' (%)')+'</label><input type="number" data-p="'+key+'" data-f="high" value="'+param.high+'"></div></div>' +
+          '<div class="lohi-row"><div class="field"><label>Low (%)</label><input type="number" data-p="'+key+'" data-f="low" value="'+param.low+'"></div><div class="field"><label>High (%)</label><input type="number" data-p="'+key+'" data-f="high" value="'+param.high+'"></div></div>' +
           '<div class="lohi-row"><div class="field"><label>Black point</label><input type="number" min="0" max="255" data-p="'+key+'" data-bmf="min" value="'+(bm.min===undefined?0:bm.min)+'"></div><div class="field"><label>White point</label><input type="number" min="0" max="255" data-p="'+key+'" data-bmf="max" value="'+(bm.max===undefined?255:bm.max)+'"></div></div>' +
           '<div class="knob-row">' +
             '<div class="knob-wrap"><div class="knob" data-p="'+key+'" data-f="rate" data-val="'+param.rate+'"><div class="tick" style="transform:rotate('+(param.rate/100*270-135)+'deg)"></div></div><div class="knob-label">Rate</div><div class="knob-val">'+param.rate+'%</div></div>' +
@@ -3030,7 +3038,7 @@
         '<div class="col-label">Waveform</div>' +
         shapeRowHtml(key, param, true) +
         '<canvas class="wave-preview" id="wave-'+key+'" height="56"></canvas>' +
-        '<div class="lohi-row"><div class="field"><label>Low'+(key==='motion'?' (mm)':' (%)')+'</label><input type="number" data-p="'+key+'" data-f="low" value="'+param.low+'"></div><div class="field"><label>High'+(key==='motion'?' (mm)':' (%)')+'</label><input type="number" data-p="'+key+'" data-f="high" value="'+param.high+'"></div></div>' +
+        '<div class="lohi-row"><div class="field"><label>Low (%)</label><input type="number" data-p="'+key+'" data-f="low" value="'+param.low+'"></div><div class="field"><label>High (%)</label><input type="number" data-p="'+key+'" data-f="high" value="'+param.high+'"></div></div>' +
         '<div class="knob-row">' +
           '<div class="knob-wrap"><div class="knob" data-p="'+key+'" data-f="rate" data-val="'+param.rate+'"><div class="tick" style="transform:rotate('+(param.rate/100*270-135)+'deg)"></div></div><div class="knob-label">Rate</div><div class="knob-val">'+param.rate+'%</div></div>' +
           '<div class="knob-wrap"><div class="knob" data-p="'+key+'" data-f="phase" data-val="'+param.phase+'"><div class="tick" style="transform:rotate('+(param.phase/360*270-135)+'deg)"></div></div><div class="knob-label">Phase</div><div class="knob-val">'+param.phase+'°</div></div>' +
@@ -3170,7 +3178,7 @@
         if(p.bitmap && p.bitmap.src) ensureBitmapCache(p.bitmap.src);
         drawBitmapParamPreview(document.getElementById('bmprev-'+activeParamTab), p);
       } else {
-        drawWavePreview(document.getElementById('wave-'+activeParamTab), p.shape, p.low, p.high, activeParamTab==='motion'?'mm':'%');
+        drawWavePreview(document.getElementById('wave-'+activeParamTab), p.shape, p.low, p.high, '%');
       }
       drawMatricksPreview(document.getElementById('mtx-'+activeParamTab), src.mx, src.my, '#161618', activeParamTab==='dimmer'?'#e2a63d':'#ececea', distSpread(src));
     } else if(cue.colour.shape!=='bitmap'){
@@ -3201,7 +3209,7 @@
         else { cue[pKey][f] = +inp.value; }
         renderCueGrid(); renderViewportHud();
         var p = cue[pKey];
-        drawWavePreview(document.getElementById('wave-'+pKey), p.shape, p.low!==undefined?p.low:0, p.high!==undefined?p.high:100, pKey==='motion'?'mm':'%');
+        drawWavePreview(document.getElementById('wave-'+pKey), p.shape, p.low!==undefined?p.low:0, p.high!==undefined?p.high:100, '%');
         drawMatricksPreview(document.getElementById('mtx-'+pKey), p.mx, p.my, pKey==='colour'?p.lowHex:'#161618', pKey==='colour'?p.highHex:(pKey==='dimmer'?'#e2a63d':'#ececea'), distSpread(p));
         if(pKey==='motion'){
           var note = paramSectionsEl.querySelector('.speed-note');
@@ -3323,7 +3331,7 @@
       var p = c[activeParamTab];
       var src = (activeParamTab==='dimmer' && c.syncPhase) ? c.motion : p;
       var frac = showClock*(src.rate/100)*WAVE_FREQ + src.phase/360;
-      drawWavePreview(waveCv, p.shape, p.low, p.high, activeParamTab==='motion'?'mm':'%', frac);
+      drawWavePreview(waveCv, p.shape, p.low, p.high, '%', frac);
       drawMatricksPreview(document.getElementById('mtx-'+activeParamTab), src.mx, src.my, '#161618', activeParamTab==='dimmer'?'#e2a63d':'#ececea', distSpread(src), p.shape, frac);
     } else if(c.colour.shape!=='bitmap'){
       var csrc = c.syncPhase ? c.motion : c.colour;
@@ -4565,7 +4573,7 @@
       tb.forEach(function(b){
         if(!b.custom && !cueById(b.cueId)) logLine('Timeline check: a block on '+tr.name+' references a deleted cue — it is skipped','warn');
         var bc = b.custom || cueById(b.cueId);
-        if(bc && bc.motion && bc.motion.rate===0 && bc.motion.low!==bc.motion.high) logLine('Timeline check: block "'+(bc.name||'')+'" has motion Rate 0 — it will HOLD the wave start ('+bc.motion.low+' mm) and never move','warn');
+        if(bc && bc.motion && bc.motion.rate===0 && bc.motion.low!==bc.motion.high) logLine('Timeline check: block "'+(bc.name||'')+'" has motion Rate 0 — it will HOLD the wave start ('+bc.motion.low+'%) and never move','warn');
       });
     });
     var firstStart = Math.min.apply(null, blocks.map(function(b){ return b.start; }));
@@ -5992,8 +6000,10 @@
         /* wave value maps low→high exactly as the editor preview draws it,
            so a block/cue entry begins at the START of the drawn waveform —
            with Low = 0 that is rest, giving a clean ramp-in every time */
-        var dropMm = mP.low + wv*(mP.high - mP.low);
-        var demand = (dropMm/(liftM*1000))*255; /* cue mm → this model's real travel */
+        /* motion Low/High are PERCENT of each fixture's own travel, so one cue
+           reads the same on a 3.3 m and a 6 m winch instead of meaning a
+           different fraction of the drop on each */
+        var demand = ((mP.low + wv*(mP.high - mP.low))/100)*255;
         var dk = deskOn ? deskBytes(i) : null;
         if(activeAnim.parked){
           /* STOP MOTION: hold exactly where we are — no new movement */
@@ -6854,7 +6864,7 @@
     /* Show save/load via the native File menu */
     function showJson(){
       return JSON.stringify({
-        version: 3, app: 'BLK Motion', /* v3: phase stored in degrees */
+        version: 4, app: 'BLK Motion', /* v4: motion Low/High in % of travel */
         cues: cues, presets: presets, winchData: winchData, pages: pages,
         groups: groups, tracks: TRACKS, blocks: blocks, tlBpm: tlBpm, cueMode: cueMode,
         timelineTotal: timelineTotal, tlAudio: tlAudio, tlLoop: tlLoop,
@@ -6873,6 +6883,19 @@
       });
       cues.forEach(function(cq){ applyDist(cq.motion); applyDist(cq.dimmer); applyDist(cq.colour); });
       presets.forEach(function(p){ applyDist(p.motion); applyDist(p.dimmer); applyDist(p.colour); });
+      if((d.version||2) < 4){
+        /* motion Low/High used to be millimetres of drop; express them as a
+           percentage of travel using the lift this show was written against */
+        var oldLift = (Array.isArray(d.models) && d.models[0] && +d.models[0].liftM) || 6;
+        function mmToPct(o){
+          var m = o && o.motion;
+          if(!m) return;
+          if(typeof m.low==='number')  m.low  = Math.round((m.low /(oldLift*1000))*1000)/10;
+          if(typeof m.high==='number') m.high = Math.round((m.high/(oldLift*1000))*1000)/10;
+        }
+        cues.forEach(mmToPct); presets.forEach(mmToPct);
+        if(Array.isArray(d.blocks)) d.blocks.forEach(function(b){ if(b.custom) mmToPct(b.custom); });
+      }
       if((d.version||2) < 3){
         /* v2 shows stored phase as 0–100 % — convert to degrees */
         function degPhase(o){ ['motion','dimmer','colour'].forEach(function(k){ if(o[k] && typeof o[k].phase==='number') o[k].phase = Math.round(o[k].phase*3.6); }); }
