@@ -11,3 +11,8 @@ licensing/signing-key.b64
 # MVR test rigs dropped in for import testing
 *.mvr
 Test MVR*
+
+# stray asar extractions (asar extract-file writes to CWD)
+/index.html
+/license.js
+/main.js
